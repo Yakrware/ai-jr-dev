@@ -5,6 +5,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ai-jr-dev",
+  "compatibility_flags": ["nodejs_compat"],
   "compatibility_date": "2025-03-27",
   "pages_build_output_dir": "./dist",
   "observability": {
@@ -27,7 +28,7 @@
    * Environment Variables
    * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
    */
-  "vars": { "APP_ID": "1197746" }
+  "vars": { "APP_ID": "1197746", "APP_USER_ID": "205536373" }
   /**
    * Note: Use secrets to store sensitive data.
    * https://developers.cloudflare.com/workers/configuration/secrets/

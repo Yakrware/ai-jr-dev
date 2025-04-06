@@ -9,7 +9,10 @@
 		"cf-typegen": "wrangler types --env-interface CloudflareBindings"
 	},
 	"dependencies": {
+		"@types/dockerode": "^3.3.37",
+		"dockerode": "^4.0.5",
 		"hono": "^4.7.5",
+		"kebab-case": "^2.0.1",
 		"octokit": "^4.1.2"
 	},
 	"devDependencies": {
