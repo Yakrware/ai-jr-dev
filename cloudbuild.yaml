@@ -1,0 +1,9 @@
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    script: |
+      docker build -t us-central1-docker.pkg.dev/ai-jr-dev-production/ai-jr-dev-images/aider-runner:latest .
+    automapSubstitutions: true
+images:
+  - "us-central1-docker.pkg.dev/ai-jr-dev-production/ai-jr-dev-images/aider-runner:latest"
+options:
+  logging: CLOUD_LOGGING_ONLY
