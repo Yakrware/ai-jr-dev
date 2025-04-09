@@ -60,9 +60,11 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       });
       const prompt = `Apply all necessary changes based on below issue description. \nIssue title: ${title}\nIssue description:\n${body}`;
 
+      const fullJobName = `projects/ai-jr-dev-production/locations/us-central1/jobs/aider-runner`;
+
       const jobsClient = new JobsClient();
       const [operation] = await jobsClient.runJob({
-        name: "aider-runner",
+        name: fullJobName,
         overrides: {
           containerOverrides: [
             {
@@ -130,9 +132,10 @@ octoApp.webhooks.on(
         installation_id: payload.installation.id,
       });
       // send prompt to aider
+      const fullJobName = `projects/ai-jr-dev-production/locations/us-central1/jobs/aider-runner`;
       const jobsClient = new JobsClient();
       const [operation] = await jobsClient.runJob({
-        name: "aider-runner",
+        name: fullJobName,
         overrides: {
           containerOverrides: [
             {
