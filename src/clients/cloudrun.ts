@@ -1,8 +1,6 @@
 import { JobsClient, protos } from "@google-cloud/run";
-import { App } from "octokit"; // Import App for token generation
+import { Octokit } from "octokit"; // Import Octokit type
 import dotenv from "dotenv";
-
-dotenv.config(); // Ensure environment variables are loaded
 
 // Define the full job name using environment variables or defaults
 const FULL_JOB_NAME = `projects/${
@@ -19,24 +17,21 @@ export interface RunJobParams {
   branchName: string;
 }
 
-// Internal Octokit App instance for token generation
-const octoApp = new App({
-  appId: process.env.APP_ID ?? "",
-  privateKey: process.env.PRIVATE_KEY ?? "",
-});
-
 /**
  * Runs a Google Cloud Run job with specific parameters for the AI dev task.
+ * @param octokit - An authenticated Octokit instance for the installation.
  * @param params - The parameters for running the job, including installation ID, prompt, clone URL, and branch name.
  * @returns A promise resolving to the operation result.
  */
-export async function runCloudRunJob(params: RunJobParams): Promise<any> {
+export async function runCloudRunJob(
+  octokit: Octokit, // Accept octokit instance
+  params: RunJobParams
+): Promise<any> {
   const jobsClient = new JobsClient();
   try {
-    // Generate installation access token
-    const auth = await octoApp.getInstallationOctokit(params.installationId);
+    // Generate installation access token using the passed octokit instance
     const tokenResponse =
-      await auth.rest.apps.createInstallationAccessToken({
+      await octokit.rest.apps.createInstallationAccessToken({
         installation_id: params.installationId,
       });
     const accessToken = tokenResponse.data.token;

@@ -16,7 +16,6 @@ const octoApp = new App({
 });
 
 const WATCHED_LABELS = ["aider", "ai-jr-dev"];
-// FULL_JOB_NAME is now defined in cloudrun.ts
 
 octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
   if (!payload.installation) return;
@@ -60,8 +59,8 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       // TODO: clean user input
       const prompt = `Apply all necessary changes based on below issue description. \nIssue title: ${title}\nIssue description:\n${body}`;
 
-      // Use the updated client function with specific parameters
-      const [_response] = await runCloudRunJob({
+      // Use the updated client function with specific parameters, passing octokit
+      const [_response] = await runCloudRunJob(octokit, {
         installationId: payload.installation.id,
         prompt: prompt,
         cloneUrlWithoutToken: payload.repository.clone_url,
@@ -135,8 +134,8 @@ octoApp.webhooks.on(
           return;
         }
 
-        // Use the updated client function with specific parameters
-        const [_response] = await runCloudRunJob({
+        // Use the updated client function with specific parameters, passing octokit
+        const [_response] = await runCloudRunJob(octokit, {
           installationId: payload.installation.id,
           prompt: prompt,
           cloneUrlWithoutToken: payload.repository.clone_url,
