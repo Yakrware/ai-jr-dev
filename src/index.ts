@@ -106,8 +106,12 @@ octoApp.webhooks.on(
 
     const prLabels = payload.pull_request.labels.map((label) => label.name);
 
+    const watchedLabelsPresent = prLabels.some((label) =>
+      watchedLabels.includes(label)
+    );
+
     if (
-      prLabels.some((label) => watchedLabels.includes(label)) &&
+      payload.pull_request.user?.id || watchedLabelsPresent &&
       payload.review.state === "changes_requested"
     ) {
       const resp = await octokit.graphql<ReviewAndComments>(reviewAndComments, {
