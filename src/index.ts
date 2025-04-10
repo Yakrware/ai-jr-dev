@@ -56,6 +56,7 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
     }
 
     try {
+      // TODO: clean user input
       const prompt = `Apply all necessary changes based on below issue description. \nIssue title: ${title}\nIssue description:\n${body}`;
 
       const [_response] = await runCloudRunJob(octokit, {
@@ -72,6 +73,7 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
         head: branchName,
         base: payload.repository.default_branch,
       });
+      // TODO: use image output to generate a PR summary, including any commands the user needs to run for the AI
     } catch (e: any) {
       console.error("Error processing issue label event:", e); // Log specific error context
     }
@@ -135,6 +137,10 @@ octoApp.webhooks.on(
           cloneUrlWithoutToken: payload.repository.clone_url,
           branchName: payload.pull_request.head.ref,
         });
+
+        // TODO: use image output to make any comments, such as commands that the AI needs the user's help running
+        // TODO: clean up - use graphql API to hide all change requests
+        // TODO: Mark any floating comments as resolved.
 
         // Reset review request
         if (payload.review.user?.login) {
