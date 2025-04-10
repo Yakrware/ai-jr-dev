@@ -1,27 +1,20 @@
 {
   "name": "ai-jr-dev",
   "type": "module",
-  "main": "dist/index.cjs",
+  "main": "dist/index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "tsc --watch & npx @google-cloud/functions-framework --target=webhook --port=5173",
+    "build": "tsc",
     "start": "npx @google-cloud/functions-framework --target=webhook",
     "prestart": "npm run build"
   },
   "dependencies": {
-    "dotenv": "^16.4.7",
     "@google-cloud/run": "^2.0.1",
+    "dotenv": "^16.4.7",
     "kebab-case": "^2.0.1",
     "octokit": "^4.1.2"
   },
   "devDependencies": {
-    "vite": "^6.2.5",
-    "vite-plugin-node": "^5.0.0",
-    "wrangler": "^4.6.0"
-  },
-  "overrides": {
-    "vite-plugin-node": {
-      "vite": "$vite"
-    }
+    "typescript": "^5.8.3"
   }
 }

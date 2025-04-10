@@ -1,7 +1,7 @@
 import { App } from "octokit";
 import { createNodeMiddleware } from "@octokit/webhooks";
 import kebabCase from "kebab-case";
-import { ReviewAndComments, reviewAndComments } from "./queries";
+import { ReviewAndComments, reviewAndComments } from "./queries.js";
 import { JobsClient } from "@google-cloud/run";
 import dotenv from "dotenv";
 
