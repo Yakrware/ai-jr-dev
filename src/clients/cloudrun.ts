@@ -20,22 +20,22 @@ export interface RunJobParams {
 /**
  * Runs a Google Cloud Run job with specific parameters for the AI dev task.
  * @param octokit - An authenticated Octokit instance for the installation.
- * @param params - The parameters for running the job.
+ * @param params - The parameters for running the job. Destructured for easier access.
  * @returns A promise resolving to the operation result.
  */
 export async function runCloudRunJob(
   octokit: Octokit,
-  params: RunJobParams
+  { installationId, prompt, cloneUrlWithoutToken, branchName }: RunJobParams
 ): Promise<any> {
   const jobsClient = new JobsClient();
   try {
     const tokenResponse =
       await octokit.rest.apps.createInstallationAccessToken({
-        installation_id: params.installationId,
+        installation_id: installationId,
       });
     const accessToken = tokenResponse.data.token;
 
-    const cloneUrlWithToken = `https://x-access-token:${accessToken}@${params.cloneUrlWithoutToken.slice(
+    const cloneUrlWithToken = `https://x-access-token:${accessToken}@${cloneUrlWithoutToken.slice(
       8 // Remove 'https://'
     )}`;
 
@@ -43,12 +43,12 @@ export async function runCloudRunJob(
       containerOverrides: [
         {
           env: [
-            { name: "AIDER_ARGS", value: `--message "${params.prompt}"` },
+            { name: "AIDER_ARGS", value: `--message "${prompt}"` },
             {
               name: "REPO_NAME",
               value: cloneUrlWithToken,
             },
-            { name: "BRANCH_NAME", value: params.branchName },
+            { name: "BRANCH_NAME", value: branchName },
           ],
         },
       ],
@@ -56,7 +56,7 @@ export async function runCloudRunJob(
 
     const [operation] = await jobsClient.runJob({
       name: FULL_JOB_NAME,
-      overrides: overrides,
+      overrides,
     });
 
     return operation.promise();
