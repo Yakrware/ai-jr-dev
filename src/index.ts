@@ -65,7 +65,6 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
         cloneUrlWithoutToken: payload.repository.clone_url,
         branchName: branchName,
       });
-
       await octokit.rest.pulls.create({
         owner: payload.repository.owner.login,
         repo: payload.repository.name,
@@ -161,5 +160,8 @@ octoApp.webhooks.on(
     }
   }
 );
+
+// TODO: Reference Issue when opening PR
+// TODO: If an ai PR is merged, close issue that spawned it.
 
 export const webhook = createNodeMiddleware(octoApp.webhooks, { path: "/" });
