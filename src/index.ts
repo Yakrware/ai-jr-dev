@@ -20,7 +20,7 @@ const WATCHED_LABELS = ["aider", "ai-jr-dev"];
 octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
   if (!payload.installation) return;
 
-  if (WATCHED_LABELS.includes(payload.label?.name || "")) {
+  if (payload.label?.name && WATCHED_LABELS.includes(payload.label?.name)) {
     await octokit.rest.issues.createComment({
       owner: payload.repository.owner.login,
       repo: payload.repository.name,
