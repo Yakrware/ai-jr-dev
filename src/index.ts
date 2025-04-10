@@ -15,10 +15,12 @@ const octoApp = new App({
   },
 });
 
+const WATCHED_LABELS = ["aider", "ai-jr-dev"];
+
 octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
   if (!payload.installation) return;
 
-  if (payload.label?.name === "aider") {
+  if (payload.label?.name && WATCHED_LABELS.includes(payload.label?.name)) {
     await octokit.rest.issues.createComment({
       owner: payload.repository.owner.login,
       repo: payload.repository.name,
@@ -100,10 +102,14 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
 octoApp.webhooks.on(
   "pull_request_review.submitted",
   async ({ payload, octokit }) => {
-    if (!payload.installation) return;
+    if (!payload.installation || payload.review.state !== "changes_requested")
+      return;
+
     if (
-      payload.pull_request.user?.id === Number(process.env.APP_USER_ID) &&
-      payload.review.state === "changes_requested"
+      payload.pull_request.user?.id === Number(process.env.APP_USER_ID) ||
+      payload.pull_request.labels.some((label) =>
+        WATCHED_LABELS.includes(label.name)
+      )
     ) {
       const resp = await octokit.graphql<ReviewAndComments>(reviewAndComments, {
         owner: payload.repository.owner.login,
