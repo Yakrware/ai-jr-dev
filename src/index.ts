@@ -1,9 +1,9 @@
 import { App } from "octokit";
 import { createNodeMiddleware } from "@octokit/webhooks";
-import kebabCase from "kebab-case";
 import { ReviewAndComments, reviewAndComments } from "./queries.js";
 import { JobsClient } from "@google-cloud/run";
 import dotenv from "dotenv";
+import { kebabCase } from "./utilities.js";
 
 dotenv.config();
 
@@ -29,7 +29,7 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
     const title = `${payload.issue.title}`;
     const body = `${payload.issue.body}`;
 
-    const branchName = `ai-jr-dev/${payload.issue.number}${kebabCase(
+    const branchName = `ai-jr-dev/${payload.issue.number}-${kebabCase(
       payload.issue.title
     )}`;
 
