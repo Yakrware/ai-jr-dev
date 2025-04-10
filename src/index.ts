@@ -20,7 +20,7 @@ const WATCHED_LABELS = ["aider", "ai-jr-dev"];
 octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
   if (!payload.installation) return;
 
-  if (WATCHED_LABELS.includes(payload.label.name)) {
+  if (WATCHED_LABELS.includes(payload.label?.name || "")) {
     await octokit.rest.issues.createComment({
       owner: payload.repository.owner.login,
       repo: payload.repository.name,
@@ -102,68 +102,76 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
 octoApp.webhooks.on(
   "pull_request_review.submitted",
   async ({ payload, octokit }) => {
-    if (!payload.installation || payload.review.state !== 'changes_requested') return;
+    if (!payload.installation || payload.review.state !== "changes_requested")
+      return;
 
-    const resp = await octokit.graphql<ReviewAndComments>(reviewAndComments, {
-      owner: payload.repository.owner.login,
-      repo: payload.repository.name,
-      pr: payload.pull_request.number,
-    });
-    const comments = resp.repository.pullRequest.reviews.nodes
-      .find((review) => review.id === payload.review.node_id)
-      ?.comments.nodes.map((comment, i) => {
-        const commentString: string[] = [];
-        commentString.push(`${i}. files: ${comment.path}`);
-        if (comment.line) {
-          commentString.push(
-            comment.startLine
-              ? `lines: ${comment.startLine} - ${comment.line}`
-              : `line: ${comment.line}`
-          );
-        }
-        commentString.push(comment.bodyText);
-        return commentString.join("; ");
-      })
-      .join("\n");
-    // put together new prompt
-    const prompt = `Apply all necessary changes based on below issue description. Related to the all files: ${payload.review.body}\nSpecific Files: ${comments}`;
-    const auth = await octokit.rest.apps.createInstallationAccessToken({
-      installation_id: payload.installation.id,
-    });
-    // send prompt to aider
-    const fullJobName = `projects/ai-jr-dev-production/locations/us-central1/jobs/aider-runner`;
-    const jobsClient = new JobsClient();
-    const [operation] = await jobsClient.runJob({
-      name: fullJobName,
-      overrides: {
-        containerOverrides: [
-          {
-            env: [
-              { name: "AIDER_ARGS", value: `--message "${prompt}"` },
-              {
-                name: "REPO_NAME",
-                value: `https://x-access-token:${
-                  auth.data.token
-                }@${payload.repository.clone_url.slice(8)}`,
-              },
-              { name: "BRANCH_NAME", value: payload.pull_request.head.ref },
-            ],
-          },
-        ],
-      },
-    });
-    const [_response] = await operation.promise();
+    if (
+      payload.pull_request.user?.id === Number(process.env.APP_USER_ID) ||
+      payload.pull_request.labels.some((label) =>
+        WATCHED_LABELS.includes(label.name)
+      )
+    ) {
+      const resp = await octokit.graphql<ReviewAndComments>(reviewAndComments, {
+        owner: payload.repository.owner.login,
+        repo: payload.repository.name,
+        pr: payload.pull_request.number,
+      });
+      const comments = resp.repository.pullRequest.reviews.nodes
+        .find((review) => review.id === payload.review.node_id)
+        ?.comments.nodes.map((comment, i) => {
+          const commentString: string[] = [];
+          commentString.push(`${i}. files: ${comment.path}`);
+          if (comment.line) {
+            commentString.push(
+              comment.startLine
+                ? `lines: ${comment.startLine} - ${comment.line}`
+                : `line: ${comment.line}`
+            );
+          }
+          commentString.push(comment.bodyText);
+          return commentString.join("; ");
+        })
+        .join("\n");
+      // put together new prompt
+      const prompt = `Apply all necessary changes based on below issue description. Related to the all files: ${payload.review.body}\nSpecific Files: ${comments}`;
+      const auth = await octokit.rest.apps.createInstallationAccessToken({
+        installation_id: payload.installation.id,
+      });
+      // send prompt to aider
+      const fullJobName = `projects/ai-jr-dev-production/locations/us-central1/jobs/aider-runner`;
+      const jobsClient = new JobsClient();
+      const [operation] = await jobsClient.runJob({
+        name: fullJobName,
+        overrides: {
+          containerOverrides: [
+            {
+              env: [
+                { name: "AIDER_ARGS", value: `--message "${prompt}"` },
+                {
+                  name: "REPO_NAME",
+                  value: `https://x-access-token:${
+                    auth.data.token
+                  }@${payload.repository.clone_url.slice(8)}`,
+                },
+                { name: "BRANCH_NAME", value: payload.pull_request.head.ref },
+              ],
+            },
+          ],
+        },
+      });
+      const [_response] = await operation.promise();
 
-    // TODO: use image output to make any comments, such as commands that the AI needs the user's help running
-    // TODO: clean up - use graphql API to hide all change requests
-    // TODO: Mark any floating comments as resolved.
-    // reset review
-    octokit.rest.pulls.requestReviewers({
-      owner: payload.repository.owner.login,
-      repo: payload.repository.name,
-      pull_number: payload.pull_request.number,
-      reviewers: [payload.review.user?.login || ""],
-    });
+      // TODO: use image output to make any comments, such as commands that the AI needs the user's help running
+      // TODO: clean up - use graphql API to hide all change requests
+      // TODO: Mark any floating comments as resolved.
+      // reset review
+      octokit.rest.pulls.requestReviewers({
+        owner: payload.repository.owner.login,
+        repo: payload.repository.name,
+        pull_number: payload.pull_request.number,
+        reviewers: [payload.review.user?.login || ""],
+      });
+    }
   }
 );
 
