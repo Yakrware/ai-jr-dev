@@ -1,7 +1,7 @@
 import { App } from "octokit";
 import { createNodeMiddleware } from "@octokit/webhooks";
 import { ReviewAndComments, reviewAndComments } from "./queries.js";
-import { runCloudRunJob } from "./clients/cloudrun.js"; // Import the new client function
+import { runCloudRunJob } from "./clients/cloudrun.js"; // Import the updated client function
 import dotenv from "dotenv";
 import { kebabCase } from "./utilities.js";
 
@@ -16,11 +16,7 @@ const octoApp = new App({
 });
 
 const WATCHED_LABELS = ["aider", "ai-jr-dev"];
-const FULL_JOB_NAME = `projects/${
-  process.env.PROJECT_ID || "ai-jr-dev-production" // Use env var or default
-}/locations/${process.env.LOCATION_ID || "us-central1"}/jobs/${
-  process.env.JOB_NAME || "aider-runner" // Use env var or default
-}`;
+// FULL_JOB_NAME is now defined in cloudrun.ts
 
 octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
   if (!payload.installation) return;
@@ -62,30 +58,14 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
 
     try {
       // TODO: clean user input
-      const auth = await octokit.rest.apps.createInstallationAccessToken({
-        installation_id: payload.installation.id,
-      });
       const prompt = `Apply all necessary changes based on below issue description. \nIssue title: ${title}\nIssue description:\n${body}`;
 
-      // Use the extracted client function
+      // Use the updated client function with specific parameters
       const [_response] = await runCloudRunJob({
-        name: FULL_JOB_NAME,
-        overrides: {
-          containerOverrides: [
-            {
-              env: [
-                { name: "AIDER_ARGS", value: `--message "${prompt}"` },
-                {
-                  name: "REPO_NAME",
-                  value: `https://x-access-token:${
-                    auth.data.token
-                  }@${payload.repository.clone_url.slice(8)}`,
-                },
-                { name: "BRANCH_NAME", value: branchName },
-              ],
-            },
-          ],
-        },
+        installationId: payload.installation.id,
+        prompt: prompt,
+        cloneUrlWithoutToken: payload.repository.clone_url,
+        branchName: branchName,
       });
 
       // TODO: use image output to generate a PR summary, including any commands the user needs to run for the AI
@@ -155,32 +135,12 @@ octoApp.webhooks.on(
           return;
         }
 
-        const auth = await octokit.rest.apps.createInstallationAccessToken({
-          installation_id: payload.installation.id,
-        });
-
-        // Use the extracted client function
+        // Use the updated client function with specific parameters
         const [_response] = await runCloudRunJob({
-          name: FULL_JOB_NAME,
-          overrides: {
-            containerOverrides: [
-              {
-                env: [
-                  { name: "AIDER_ARGS", value: `--message "${prompt}"` },
-                  {
-                    name: "REPO_NAME",
-                    value: `https://x-access-token:${
-                      auth.data.token
-                    }@${payload.repository.clone_url.slice(8)}`,
-                  },
-                  {
-                    name: "BRANCH_NAME",
-                    value: payload.pull_request.head.ref,
-                  },
-                ],
-              },
-            ],
-          },
+          installationId: payload.installation.id,
+          prompt: prompt,
+          cloneUrlWithoutToken: payload.repository.clone_url,
+          branchName: payload.pull_request.head.ref,
         });
 
         // TODO: use image output to make any comments, such as commands that the AI needs the user's help running
