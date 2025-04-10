@@ -1,7 +1,7 @@
 import { App } from "octokit";
 import { createNodeMiddleware } from "@octokit/webhooks";
 import { ReviewAndComments, reviewAndComments } from "./queries.js";
-import { runCloudRunJob } from "./clients/cloudrun.js"; // Import the updated client function
+import { runCloudRunJob } from "./clients/cloudrun.js";
 import dotenv from "dotenv";
 import { kebabCase } from "./utilities.js";
 
@@ -56,10 +56,8 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
     }
 
     try {
-      // TODO: clean user input
       const prompt = `Apply all necessary changes based on below issue description. \nIssue title: ${title}\nIssue description:\n${body}`;
 
-      // Use the updated client function with specific parameters, passing octokit
       const [_response] = await runCloudRunJob(octokit, {
         installationId: payload.installation.id,
         prompt: prompt,
@@ -67,7 +65,6 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
         branchName: branchName,
       });
 
-      // TODO: use image output to generate a PR summary, including any commands the user needs to run for the AI
       await octokit.rest.pulls.create({
         owner: payload.repository.owner.login,
         repo: payload.repository.name,
@@ -119,7 +116,6 @@ octoApp.webhooks.on(
           })
           .join("\n");
 
-        // Construct prompt more clearly
         let prompt = `Apply all necessary changes based on the following review comments.`;
         if (payload.review.body) {
           prompt += `\n\nOverall review summary:\n${payload.review.body}`;
@@ -127,24 +123,18 @@ octoApp.webhooks.on(
         if (comments && comments.length > 0) {
           prompt += `\n\nSpecific comments on files:\n${comments}`;
         } else if (!payload.review.body) {
-          // If there's no general body and no specific comments, maybe log or skip?
           console.log(
             `Review ${payload.review.id} has no body or comments, skipping job run.`
           );
           return;
         }
 
-        // Use the updated client function with specific parameters, passing octokit
         const [_response] = await runCloudRunJob(octokit, {
           installationId: payload.installation.id,
           prompt: prompt,
           cloneUrlWithoutToken: payload.repository.clone_url,
           branchName: payload.pull_request.head.ref,
         });
-
-        // TODO: use image output to make any comments, such as commands that the AI needs the user's help running
-        // TODO: clean up - use graphql API to hide all change requests
-        // TODO: Mark any floating comments as resolved.
 
         // Reset review request
         if (payload.review.user?.login) {
