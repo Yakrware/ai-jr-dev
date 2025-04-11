@@ -21,7 +21,7 @@ EDITOR_MODEL="${EDITOR_MODEL:-$MODEL}"
 WEAK_MODEL="${WEAK_MODEL:-$MODEL}"
 
 # Run aider command with specified models
-eval "aider --no-show-model-warnings --no-check-update --yes-always --model $MODEL --editor-model $EDITOR_MODEL --weak-model $WEAK_MODEL --model-settings-file ../.aider.model.settings.yml --auto-commit --message \"${PROMPT}\""
+eval "aider --no-show-model-warnings --no-check-update --yes-always --model $MODEL --editor-model $EDITOR_MODEL --weak-model $WEAK_MODEL --edit-format udiff --model-settings-file ../.aider.model.settings.yml --message \"${PROMPT}\""
 
 # Push changes
 git push origin $BRANCH_NAME
