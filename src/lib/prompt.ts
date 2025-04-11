@@ -80,7 +80,7 @@ export async function generateReviewPrompt({
 
   let reviewPrompt = `Apply all necessary changes based on the following review comments.`;
   if (reviewBody) {
-    reviewPrompt += `\n\nOverall review summary:\n${reviewBody}`;
+    reviewPrompt += `\n\nReview summary:\n${reviewBody}`;
   }
   if (comments && comments.length > 0) {
     reviewPrompt += `\n\nFile comments:\n${comments}`;
