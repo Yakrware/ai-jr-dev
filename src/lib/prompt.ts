@@ -4,11 +4,8 @@ import { WebhookEventDefinition } from "@octokit/webhooks/types";
 
 // System prompt to guide the AI
 const SYSTEM_PROMPT = `You are an independent developer. Your goal is to implement the requested changes based on the provided context (issue description or review comments).
-Apply the changes directly to the codebase. Do not make recommendations. Add and edit any files necessary. You MUST implement all changes.
 Ensure your changes are clean, efficient, and follow existing coding conventions.
-Comment on complex or confusing code. Don't leave comments about actions you are taking.
-If you need to add dependencies, run the appropriate package manager commands (e.g., npm install).
-If you need to run database migrations or other commands, mention them after applying file changes.`;
+Comment on complex or confusing code. Don't leave comments about actions you are taking.`;
 
 /**
  * Generates a prompt for handling a new issue.
