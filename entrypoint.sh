@@ -21,7 +21,7 @@ EDITOR_MODEL="${EDITOR_MODEL:-$MODEL}"
 WEAK_MODEL="${WEAK_MODEL:-$MODEL}"
 
 # Run aider command with specified models
-eval "aider --no-show-model-warnings --no-check-update --yes --model $MODEL --editor-model $EDITOR_MODEL --weak-model $WEAK_MODEL $AIDER_ARGS"
+eval "aider --no-show-model-warnings --no-check-update --yes-always --model $MODEL --editor-model $EDITOR_MODEL --weak-model $WEAK_MODEL $AIDER_ARGS"
 
 # Push changes
 git push origin $BRANCH_NAME
