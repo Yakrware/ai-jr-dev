@@ -5,7 +5,7 @@ import { WebhookEventDefinition } from "@octokit/webhooks/types";
 
 // Basic check for the system prompt inclusion - updated to match prompt.ts
 const SYSTEM_PROMPT_CHECK =
-  "Your goal is to implement the requested changes based on the provided context";
+  "Implement the requested changes based on the provided context";
 
 // --- Mocks for generateIssuePrompt ---
 
