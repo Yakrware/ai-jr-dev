@@ -3,7 +3,10 @@ import { ReviewAndComments, reviewAndComments } from "../queries.js"; // Import 
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 
 // System prompt to guide the AI
-const SYSTEM_PROMPT = `Implement the requested changes based on the provided context (issue description or review comments).`;
+const SYSTEM_PROMPT = `Your goal is to implement the requested changes based on the provided context (issue description or review comments).
+Apply the changes directly to the codebase. Add and edit any files necessary. Implement all changes.
+Ensure your changes are clean, efficient, and follow existing coding conventions.
+Do not add files that are normally generated (such as package-lock.json)`;
 
 /**
  * Generates a prompt for handling a new issue.
