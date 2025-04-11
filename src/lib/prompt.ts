@@ -1,9 +1,6 @@
 import { Octokit } from "octokit";
-import {
-  WebhookPayloadIssuesLabeled,
-  WebhookPayloadPullRequestReviewSubmitted,
-} from "@octokit/webhooks-types";
 import { ReviewAndComments, reviewAndComments } from "../queries.js"; // Import GraphQL query
+import { WebhookEventDefinition } from "@octokit/webhooks/types";
 
 // System prompt to guide the AI
 const SYSTEM_PROMPT = `Your goal is to implement the requested changes based on the provided context (issue description or review comments).
@@ -19,7 +16,7 @@ If you need to run database migrations or other commands, mention them after app
  * @returns The generated prompt string.
  */
 export function generateIssuePrompt(
-  payload: WebhookPayloadIssuesLabeled
+  payload: WebhookEventDefinition<"issues-labeled">
 ): string {
   const title = payload.issue.title;
   const body = payload.issue.body;
@@ -30,7 +27,7 @@ Issue body: ${body}`;
 
 interface ReviewPromptParams {
   octokit: Octokit;
-  payload: WebhookPayloadPullRequestReviewSubmitted;
+  payload: WebhookEventDefinition<"pull-request-review-submitted">;
 }
 
 /**
