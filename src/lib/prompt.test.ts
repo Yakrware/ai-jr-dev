@@ -1,17 +1,17 @@
 import { generateIssuePrompt, generateReviewPrompt } from "./prompt";
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Octokit } from "octokit"; // Import Octokit type
-import {
-  WebhookPayloadIssuesLabeled,
-  WebhookPayloadPullRequestReviewSubmitted,
-} from "@octokit/webhooks-types"; // Import payload types
 import { ReviewAndComments } from "../queries"; // Import GraphQL response type
+import { WebhookEventDefinition } from "@octokit/webhooks/types";
 
 // Basic check for the system prompt inclusion - updated to match prompt.ts
 const SYSTEM_PROMPT_CHECK =
   "Your goal is to implement the requested changes based on the provided context";
 
 // --- Mocks for generateIssuePrompt ---
+
+type WebhookPayloadIssuesLabeled = WebhookEventDefinition<"issues-labeled">;
+type WebhookPayloadPullRequestReviewSubmitted =
+  WebhookEventDefinition<"pull-request-review-submitted">;
 
 const mockIssueLabeledPayloadBase: WebhookPayloadIssuesLabeled = {
   action: "labeled",
@@ -38,7 +38,14 @@ const mockIssueLabeledPayloadBase: WebhookPayloadIssuesLabeled = {
     html_url: "http://example.com/repo",
     // ... other required repo properties
   },
-  label: { name: "aider", id: 1, node_id: "label-node-id", color: "ffffff", default: false, description: "" }, // Example label with required fields
+  label: {
+    name: "aider",
+    id: 1,
+    node_id: "label-node-id",
+    color: "ffffff",
+    default: false,
+    description: "",
+  }, // Example label with required fields
   installation: { id: 1, node_id: "install-node-id" }, // Example installation with required fields
   sender: { login: "sender-user", id: 2, node_id: "sender-node-id" }, // Added required sender
   // ... other payload properties
@@ -75,8 +82,16 @@ const mockReviewSubmittedPayloadBase: WebhookPayloadPullRequestReviewSubmitted =
       body: "PR Body",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      head: { ref: "feature-branch", sha: "head-sha", repo: { id: 123, name: "test-repo", owner: { login: "test-owner" } } }, // Simplified head/base
-      base: { ref: "main", sha: "base-sha", repo: { id: 123, name: "test-repo", owner: { login: "test-owner" } } },
+      head: {
+        ref: "feature-branch",
+        sha: "head-sha",
+        repo: { id: 123, name: "test-repo", owner: { login: "test-owner" } },
+      }, // Simplified head/base
+      base: {
+        ref: "main",
+        sha: "base-sha",
+        repo: { id: 123, name: "test-repo", owner: { login: "test-owner" } },
+      },
       // ... other required PR properties
     },
     repository: {
@@ -195,7 +210,10 @@ describe("generateReviewPrompt", () => {
     mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
-    const prompt = await generateReviewPrompt({ octokit: mockOctokit, payload });
+    const prompt = await generateReviewPrompt({
+      octokit: mockOctokit,
+      payload,
+    });
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
     // Updated check for review summary format
     expect(prompt).toContain("Review summary:\nOverall feedback.");
@@ -206,13 +224,13 @@ describe("generateReviewPrompt", () => {
     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
     // Verify graphql call parameters
     expect(mockOctokit.graphql).toHaveBeenCalledWith(expect.any(String), {
-        owner: payload.repository.owner.login,
-        repo: payload.repository.name,
-        pr: payload.pull_request.number,
+      owner: payload.repository.owner.login,
+      repo: payload.repository.name,
+      pr: payload.pull_request.number,
     });
   });
 
-   it("should generate a prompt with multi-line comments", async () => {
+  it("should generate a prompt with multi-line comments", async () => {
     const payload = {
       ...mockReviewSubmittedPayloadBase,
       review: {
@@ -247,7 +265,10 @@ describe("generateReviewPrompt", () => {
     mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
-    const prompt = await generateReviewPrompt({ octokit: mockOctokit, payload });
+    const prompt = await generateReviewPrompt({
+      octokit: mockOctokit,
+      payload,
+    });
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
     // Updated check for review summary format
     expect(prompt).toContain("Review summary:\nMulti-line feedback.");
@@ -257,7 +278,6 @@ describe("generateReviewPrompt", () => {
     );
     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
-
 
   it("should generate a prompt with review body only", async () => {
     const payload = {
@@ -285,7 +305,10 @@ describe("generateReviewPrompt", () => {
     mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
-    const prompt = await generateReviewPrompt({ octokit: mockOctokit, payload });
+    const prompt = await generateReviewPrompt({
+      octokit: mockOctokit,
+      payload,
+    });
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
     // Updated check for review summary format
     expect(prompt).toContain("Review summary:\nOverall feedback.");
@@ -329,7 +352,10 @@ describe("generateReviewPrompt", () => {
     mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
-    const prompt = await generateReviewPrompt({ octokit: mockOctokit, payload });
+    const prompt = await generateReviewPrompt({
+      octokit: mockOctokit,
+      payload,
+    });
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
     // Updated check: Review summary section should not be present
     expect(prompt).not.toContain("Review summary:");
@@ -349,7 +375,7 @@ describe("generateReviewPrompt", () => {
         body: "", // Empty body
       },
     };
-     const mockGraphQLResponse: ReviewAndComments = {
+    const mockGraphQLResponse: ReviewAndComments = {
       repository: {
         pullRequest: {
           reviews: {
@@ -375,7 +401,10 @@ describe("generateReviewPrompt", () => {
     mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
-    const prompt = await generateReviewPrompt({ octokit: mockOctokit, payload });
+    const prompt = await generateReviewPrompt({
+      octokit: mockOctokit,
+      payload,
+    });
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
     // Updated check: An empty body results in the summary line being added but empty
     expect(prompt).toContain("Review summary:\n");
@@ -383,11 +412,11 @@ describe("generateReviewPrompt", () => {
     expect(prompt).toContain(
       "File comments:\n1. file: test.ts; line: 5; comment: Fix this."
     );
-     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
+    expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
 
   it("should generate a prompt with review body only when comments are empty", async () => {
-     const payload = {
+    const payload = {
       ...mockReviewSubmittedPayloadBase,
       review: {
         ...mockReviewSubmittedPayloadBase.review,
@@ -395,7 +424,7 @@ describe("generateReviewPrompt", () => {
         body: "Overall feedback.",
       },
     };
-     const mockGraphQLResponse: ReviewAndComments = {
+    const mockGraphQLResponse: ReviewAndComments = {
       repository: {
         pullRequest: {
           reviews: {
@@ -412,13 +441,16 @@ describe("generateReviewPrompt", () => {
     mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
-    const prompt = await generateReviewPrompt({ octokit: mockOctokit, payload });
+    const prompt = await generateReviewPrompt({
+      octokit: mockOctokit,
+      payload,
+    });
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
     // Updated check for review summary format
     expect(prompt).toContain("Review summary:\nOverall feedback.");
     // Updated check: Empty comments result in the comments line NOT being added
     expect(prompt).not.toContain("File comments:");
-     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
+    expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
 
   it("should return null if both body and comments are missing/empty", async () => {
@@ -447,12 +479,15 @@ describe("generateReviewPrompt", () => {
     mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
-    const prompt = await generateReviewPrompt({ octokit: mockOctokit, payload });
+    const prompt = await generateReviewPrompt({
+      octokit: mockOctokit,
+      payload,
+    });
     expect(prompt).toBeNull(); // Expect null when no actionable feedback
     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
 
-   it("should return null if the specific review is not found in GraphQL response", async () => {
+  it("should return null if the specific review is not found in GraphQL response", async () => {
     const payload = {
       ...mockReviewSubmittedPayloadBase,
       review: {
@@ -465,7 +500,8 @@ describe("generateReviewPrompt", () => {
       repository: {
         pullRequest: {
           reviews: {
-            nodes: [ // Does not contain 'review-node-id-not-found'
+            nodes: [
+              // Does not contain 'review-node-id-not-found'
               {
                 id: "review-node-id-other",
                 comments: { nodes: [] },
@@ -478,9 +514,11 @@ describe("generateReviewPrompt", () => {
     mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
-    const prompt = await generateReviewPrompt({ octokit: mockOctokit, payload });
+    const prompt = await generateReviewPrompt({
+      octokit: mockOctokit,
+      payload,
+    });
     expect(prompt).toBeNull(); // Expect null as the relevant review wasn't found
     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
-
 });
