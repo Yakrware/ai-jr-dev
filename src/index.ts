@@ -4,6 +4,7 @@ import { ReviewAndComments, reviewAndComments } from "./queries.js";
 import { runCloudRunJob } from "./clients/cloudrun.js";
 import dotenv from "dotenv";
 import { kebabCase } from "./utilities.js";
+import { generateIssuePrompt, generateReviewPrompt } from "./lib/prompt.js"; // Import new functions
 
 dotenv.config();
 
@@ -27,9 +28,6 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       issue_number: payload.issue.number,
       body: "I'm on it!",
     });
-
-    const title = `${payload.issue.title}`;
-    const body = `${payload.issue.body}`;
 
     const branchName = `ai-jr-dev/${payload.issue.number}-${kebabCase(
       payload.issue.title
@@ -56,8 +54,11 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
     }
 
     try {
-      // TODO: clean user input
-      const prompt = `Apply all necessary changes based on below issue description. \nIssue title: ${title}\nIssue description:\n${body}`;
+      // Generate prompt using the new function
+      const prompt = generateIssuePrompt({
+        title: payload.issue.title,
+        body: payload.issue.body,
+      });
 
       const [_response] = await runCloudRunJob(octokit, {
         installationId: payload.installation.id,
@@ -117,18 +118,19 @@ octoApp.webhooks.on(
           })
           .join("\n");
 
-        let prompt = `Apply all necessary changes based on the following review comments.`;
-        if (payload.review.body) {
-          prompt += `\n\nOverall review summary:\n${payload.review.body}`;
-        }
-        if (comments && comments.length > 0) {
-          prompt += `\n\nSpecific comments on files:\n${comments}`;
-        } else if (!payload.review.body) {
+        // Check if there's anything actionable
+        if (!payload.review.body && (!comments || comments.length === 0)) {
           console.log(
             `Review ${payload.review.id} has no body or comments, skipping job run.`
           );
           return;
         }
+
+        // Generate prompt using the new function
+        const prompt = generateReviewPrompt({
+          reviewBody: payload.review.body,
+          comments: comments,
+        });
 
         const [_response] = await runCloudRunJob(octokit, {
           installationId: payload.installation.id,
