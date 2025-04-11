@@ -63,6 +63,9 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
         cloneUrlWithoutToken: payload.repository.clone_url,
         branchName: branchName,
       });
+
+      console.log(JSON.stringify(_response));
+
       await octokit.rest.pulls.create({
         owner: payload.repository.owner.login,
         repo: payload.repository.name,
@@ -119,6 +122,8 @@ octoApp.webhooks.on(
           cloneUrlWithoutToken: payload.repository.clone_url,
           branchName: payload.pull_request.head.ref,
         });
+
+        console.log(JSON.stringify(_response));
 
         // TODO: use image output to make any comments, such as commands that the AI needs the user's help running
         // TODO: clean up - use graphql API to hide all change requests
