@@ -83,7 +83,7 @@ export async function generateReviewPrompt({
     reviewPrompt += `\n\nOverall review summary:\n${reviewBody}`;
   }
   if (comments && comments.length > 0) {
-    reviewPrompt += `\n\nSpecific comments on files:\n${comments}`;
+    reviewPrompt += `\n\nFile comments:\n${comments}`;
   }
   return `${SYSTEM_PROMPT}\n\n${reviewPrompt}`;
 }
