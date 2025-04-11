@@ -1,9 +1,9 @@
 import { App } from "octokit";
 import { createNodeMiddleware } from "@octokit/webhooks";
-import { ReviewAndComments, reviewAndComments } from "./queries.js";
 import { runCloudRunJob } from "./clients/cloudrun.js";
 import dotenv from "dotenv";
 import { kebabCase } from "./utilities.js";
+import { generateIssuePrompt, generateReviewPrompt } from "./lib/prompt.js"; // Import updated functions
 
 dotenv.config();
 
@@ -27,9 +27,6 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       issue_number: payload.issue.number,
       body: "I'm on it!",
     });
-
-    const title = `${payload.issue.title}`;
-    const body = `${payload.issue.body}`;
 
     const branchName = `ai-jr-dev/${payload.issue.number}-${kebabCase(
       payload.issue.title
@@ -57,8 +54,8 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
     }
 
     try {
-      // TODO: clean user input
-      const prompt = `Apply all necessary changes based on below issue description. \nIssue title: ${title}\nIssue description:\n${body}`;
+      // Generate prompt using the payload directly
+      const prompt = generateIssuePrompt(payload);
 
       const [_response] = await runCloudRunJob(octokit, {
         installationId: payload.installation.id,
@@ -105,40 +102,13 @@ octoApp.webhooks.on(
       )
     ) {
       try {
-        const resp = await octokit.graphql<ReviewAndComments>(
-          reviewAndComments,
-          {
-            owner: payload.repository.owner.login,
-            repo: payload.repository.name,
-            pr: payload.pull_request.number,
-          }
-        );
-        const comments = resp.repository.pullRequest.reviews.nodes
-          .find((review) => review.id === payload.review.node_id)
-          ?.comments.nodes.map((comment, i) => {
-            const commentString: string[] = [];
-            commentString.push(`${i + 1}. file: ${comment.path}`); // Start numbering at 1
-            if (comment.line) {
-              commentString.push(
-                comment.startLine && comment.startLine !== comment.line
-                  ? `lines: ${comment.startLine}-${comment.line}`
-                  : `line: ${comment.line}`
-              );
-            }
-            commentString.push(`comment: ${comment.bodyText}`);
-            return commentString.join("; ");
-          })
-          .join("\n");
+        // Generate prompt using the new function, passing octokit and payload
+        const prompt = await generateReviewPrompt({ octokit, payload });
 
-        let prompt = `Apply all necessary changes based on the following review comments.`;
-        if (payload.review.body) {
-          prompt += `\n\nOverall review summary:\n${payload.review.body}`;
-        }
-        if (comments && comments.length > 0) {
-          prompt += `\n\nSpecific comments on files:\n${comments}`;
-        } else if (!payload.review.body) {
+        // Check if a prompt was generated (it might be null if no actionable feedback)
+        if (!prompt) {
           console.log(
-            `Review ${payload.review.id} has no body or comments, skipping job run.`
+            `No actionable feedback found in review ${payload.review.id}. Skipping job run.`
           );
           return;
         }
