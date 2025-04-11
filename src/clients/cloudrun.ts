@@ -1,8 +1,5 @@
 import { JobsClient, protos } from "@google-cloud/run";
 import { Octokit } from "octokit";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const FULL_JOB_NAME = `projects/${
   process.env.PROJECT_ID || "ai-jr-dev-production"
@@ -29,10 +26,11 @@ export async function runCloudRunJob(
 ): Promise<any> {
   const jobsClient = new JobsClient();
   try {
-    const tokenResponse =
-      await octokit.rest.apps.createInstallationAccessToken({
+    const tokenResponse = await octokit.rest.apps.createInstallationAccessToken(
+      {
         installation_id: installationId,
-      });
+      }
+    );
     const accessToken = tokenResponse.data.token;
 
     const cloneUrlWithToken = `https://x-access-token:${accessToken}@${cloneUrlWithoutToken.slice(
