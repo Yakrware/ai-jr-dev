@@ -41,7 +41,7 @@ export async function runCloudRunJob(
       containerOverrides: [
         {
           env: [
-            { name: "AIDER_ARGS", value: `--message "${prompt}"` },
+            { name: "PROMPT", value: prompt },
             {
               name: "REPO_NAME",
               value: cloneUrlWithToken,
