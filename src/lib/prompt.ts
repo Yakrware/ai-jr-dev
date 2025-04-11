@@ -78,7 +78,7 @@ export async function generateReviewPrompt({
     return null; // Return null if no actionable feedback
   }
 
-  let reviewPrompt = `Apply all necessary changes based on the following review comments.`;
+  let reviewPrompt = "";
   if (reviewBody) {
     reviewPrompt += `\n\nReview summary:\n${reviewBody}`;
   }
