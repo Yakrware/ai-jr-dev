@@ -12,6 +12,7 @@ export interface RunJobParams {
   prompt: string;
   cloneUrlWithoutToken: string;
   branchName: string;
+  defaultBranchName: string; // Added default branch name
 }
 
 /**
@@ -22,7 +23,13 @@ export interface RunJobParams {
  */
 export async function runCloudRunJob(
   octokit: Octokit,
-  { installationId, prompt, cloneUrlWithoutToken, branchName }: RunJobParams
+  {
+    installationId,
+    prompt,
+    cloneUrlWithoutToken,
+    branchName,
+    defaultBranchName, // Destructure default branch name
+  }: RunJobParams
 ): Promise<any> {
   const jobsClient = new JobsClient();
   try {
@@ -47,6 +54,7 @@ export async function runCloudRunJob(
               value: cloneUrlWithToken,
             },
             { name: "BRANCH_NAME", value: branchName },
+            { name: "DEFAULT_BRANCH", value: defaultBranchName }, // Pass default branch as env var
           ],
         },
       ],
