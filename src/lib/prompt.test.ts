@@ -7,9 +7,9 @@ import {
 } from "@octokit/webhooks-types"; // Import payload types
 import { ReviewAndComments } from "../queries"; // Import GraphQL response type
 
-// Basic check for the system prompt inclusion
+// Basic check for the system prompt inclusion - updated to match prompt.ts
 const SYSTEM_PROMPT_CHECK =
-  "You are an AI assistant acting as a junior software developer.";
+  "Your goal is to implement the requested changes based on the provided context";
 
 // --- Mocks for generateIssuePrompt ---
 
@@ -115,7 +115,8 @@ describe("generateIssuePrompt", () => {
     const prompt = generateIssuePrompt(payload);
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
     expect(prompt).toContain("Issue title: Test Issue");
-    expect(prompt).toContain("Issue description:\nThis is the issue body.");
+    // Updated check for issue body format
+    expect(prompt).toContain("Issue body: This is the issue body.");
   });
 
   it("should generate a prompt with title only when body is null", () => {
@@ -131,7 +132,8 @@ describe("generateIssuePrompt", () => {
     const prompt = generateIssuePrompt(payload);
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
     expect(prompt).toContain("Issue title: Test Issue No Body");
-    expect(prompt).not.toContain("Issue description:");
+    // Updated check: "Issue body:" should not be present if body is null
+    expect(prompt).not.toContain("Issue body:");
   });
 
   it("should generate a prompt with title only when body is empty string", () => {
@@ -147,8 +149,8 @@ describe("generateIssuePrompt", () => {
     const prompt = generateIssuePrompt(payload);
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
     expect(prompt).toContain("Issue title: Test Issue Empty Body");
-    // An empty body results in the description line being added but empty
-    expect(prompt).toContain("Issue description:\n");
+    // Updated check: An empty body results in the body line being added but empty
+    expect(prompt).toContain("Issue body: ");
   });
 });
 
@@ -195,9 +197,11 @@ describe("generateReviewPrompt", () => {
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({ octokit: mockOctokit, payload });
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
-    expect(prompt).toContain("Overall review summary:\nOverall feedback.");
+    // Updated check for review summary format
+    expect(prompt).toContain("Review summary:\nOverall feedback.");
+    // Updated check for file comments format
     expect(prompt).toContain(
-      "Specific comments on files:\n1. file: test.ts; line: 5; comment: Fix this."
+      "File comments:\n1. file: test.ts; line: 5; comment: Fix this."
     );
     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
     // Verify graphql call parameters
@@ -245,9 +249,11 @@ describe("generateReviewPrompt", () => {
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({ octokit: mockOctokit, payload });
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
-    expect(prompt).toContain("Overall review summary:\nMulti-line feedback.");
+    // Updated check for review summary format
+    expect(prompt).toContain("Review summary:\nMulti-line feedback.");
+    // Updated check for file comments format
     expect(prompt).toContain(
-      "Specific comments on files:\n1. file: file.js; lines: 10-15; comment: Address this range."
+      "File comments:\n1. file: file.js; lines: 10-15; comment: Address this range."
     );
     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
@@ -281,8 +287,10 @@ describe("generateReviewPrompt", () => {
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({ octokit: mockOctokit, payload });
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
-    expect(prompt).toContain("Overall review summary:\nOverall feedback.");
-    expect(prompt).not.toContain("Specific comments on files:");
+    // Updated check for review summary format
+    expect(prompt).toContain("Review summary:\nOverall feedback.");
+    // Updated check: File comments section should not be present
+    expect(prompt).not.toContain("File comments:");
     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
 
@@ -323,9 +331,11 @@ describe("generateReviewPrompt", () => {
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({ octokit: mockOctokit, payload });
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
-    expect(prompt).not.toContain("Overall review summary:");
+    // Updated check: Review summary section should not be present
+    expect(prompt).not.toContain("Review summary:");
+    // Updated check for file comments format
     expect(prompt).toContain(
-      "Specific comments on files:\n1. file: test.ts; line: 5; comment: Fix this."
+      "File comments:\n1. file: test.ts; line: 5; comment: Fix this."
     );
     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
@@ -367,10 +377,11 @@ describe("generateReviewPrompt", () => {
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({ octokit: mockOctokit, payload });
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
-    // An empty body results in the summary line being added but empty
-    expect(prompt).toContain("Overall review summary:\n");
+    // Updated check: An empty body results in the summary line being added but empty
+    expect(prompt).toContain("Review summary:\n");
+    // Updated check for file comments format
     expect(prompt).toContain(
-      "Specific comments on files:\n1. file: test.ts; line: 5; comment: Fix this."
+      "File comments:\n1. file: test.ts; line: 5; comment: Fix this."
     );
      expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
@@ -403,9 +414,10 @@ describe("generateReviewPrompt", () => {
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({ octokit: mockOctokit, payload });
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
-    expect(prompt).toContain("Overall review summary:\nOverall feedback.");
-    // Empty comments result in the comments line NOT being added
-    expect(prompt).not.toContain("Specific comments on files:");
+    // Updated check for review summary format
+    expect(prompt).toContain("Review summary:\nOverall feedback.");
+    // Updated check: Empty comments result in the comments line NOT being added
+    expect(prompt).not.toContain("File comments:");
      expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
 
