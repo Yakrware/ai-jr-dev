@@ -6,12 +6,12 @@ import {
 import { ReviewAndComments, reviewAndComments } from "../queries.js"; // Import GraphQL query
 
 // System prompt to guide the AI
-const SYSTEM_PROMPT = `You are an AI assistant acting as a junior software developer.
-Your goal is to implement the requested changes based on the provided context (issue description or review comments).
+const SYSTEM_PROMPT = `Your goal is to implement the requested changes based on the provided context (issue description or review comments).
 Apply the changes directly to the codebase.
 Ensure your changes are clean, efficient, and follow existing coding conventions.
+Comment on complex or confusing code. Don't leave comments about actions you are taking.
 If you need to add dependencies, use the appropriate package manager commands (e.g., npm install).
-If you need to run database migrations or other commands, mention them in the pull request summary.`;
+If you need to run database migrations or other commands, mention them after applying file changes.`;
 
 /**
  * Generates a prompt for handling a new issue.
