@@ -112,7 +112,7 @@ const mockReviewSubmittedPayloadBase: WebhookPayloadPullRequestReviewSubmitted =
 // Mock Octokit instance
 const mockOctokit = {
   graphql: jest.fn(),
-} as unknown as Octokit; // Type assertion for mocking
+} as any; // Using 'as any' for mocking simplicity to resolve type errors
 
 // --- Tests ---
 
