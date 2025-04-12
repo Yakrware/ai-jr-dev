@@ -16,8 +16,8 @@ export function generateIssuePrompt(
 ): string {
   const title = payload.issue.title;
   const body = payload.issue.body;
-  const issuePrompt = `Short description: ${title}
-More details: ${body}`;
+  let issuePrompt = `Short description: ${title}`;
+  if (body) issuePrompt += `\nMore details: ${body}`;
   return `${SYSTEM_PROMPT}\n\n${issuePrompt}`;
 }
 
@@ -46,6 +46,11 @@ export async function generateReviewPrompt({
   });
 
   // Find the specific review and format its comments
+  console.log(
+    resp.repository.pullRequest.reviews.nodes.find(
+      (review) => review.id === payload.review.node_id
+    )
+  );
   const comments = resp.repository.pullRequest.reviews.nodes
     .find((review) => review.id === payload.review.node_id)
     ?.comments.nodes.map((comment, i) => {

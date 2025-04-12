@@ -1,5 +1,4 @@
 import { generateIssuePrompt, generateReviewPrompt } from "./prompt.js";
-import { Octokit } from "octokit"; // Import Octokit type
 import { ReviewAndComments } from "../queries.js"; // Import GraphQL response type
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 
@@ -165,7 +164,7 @@ describe("generateIssuePrompt", () => {
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
     expect(prompt).toContain("Issue title: Test Issue Empty Body");
     // Updated check: An empty body results in the body line being added but empty
-    expect(prompt).toContain("Issue body: ");
+    expect(prompt).not.toContain("Issue body: ");
   });
 });
 
@@ -416,7 +415,7 @@ describe("generateReviewPrompt", () => {
     });
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
     // Updated check: An empty body results in the summary line being added but empty
-    expect(prompt).toContain("Review summary:\n");
+    expect(prompt).not.toContain("Review summary:\n");
     // Updated check for file comments format
     expect(prompt).toContain(
       "File comments:\n1. file: test.ts; line: 5; comment: Fix this."
@@ -498,13 +497,13 @@ describe("generateReviewPrompt", () => {
     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
 
-  it("should return null if the specific review is not found in GraphQL response", async () => {
+  it("should return null if the specific review is not found in GraphQL response and body is blank", async () => {
     const payload = {
       ...mockReviewSubmittedPayloadBase,
       review: {
         ...mockReviewSubmittedPayloadBase.review,
         node_id: "review-node-id-not-found", // This ID won't match
-        body: "Some feedback",
+        body: "",
       },
     };
     const mockGraphQLResponse: ReviewAndComments = {

@@ -1,23 +1,22 @@
-import { JobsClient } from "@google-cloud/run";
-import { Octokit } from "octokit";
 import { runCloudRunJob, RunJobParams } from "./cloudrun.js";
 
 // Mock Octokit
-jest.mock("octokit", () => {
-  return {
-    Octokit: jest.fn().mockImplementation(() => {
-      return {
-        rest: {
-          apps: {
-            createInstallationAccessToken: jest
-              .fn()
-              .mockResolvedValue({ data: { token: "mock_access_token" } }),
-          },
+jest.mock("octokit", () => ({
+  __esModule: true,
+  Octokit: jest.fn().mockImplementation(() => {
+    return {
+      rest: {
+        apps: {
+          createInstallationAccessToken: jest
+            .fn()
+            .mockResolvedValue({ data: { token: "mock_access_token" } }),
         },
-      };
-    }),
-  };
-});
+      },
+    };
+  }),
+}));
+
+import { Octokit } from "octokit";
 
 // Mock the @google-cloud/run module
 const mockRunJobPromise = jest.fn().mockResolvedValue(["mock_job_result"]);
@@ -26,15 +25,16 @@ const mockRunJob = jest.fn().mockResolvedValue([
     promise: mockRunJobPromise,
   },
 ]);
-jest.mock("@google-cloud/run", () => {
-  return {
-    JobsClient: jest.fn().mockImplementation(() => {
-      return {
-        runJob: mockRunJob,
-      };
-    }),
-  };
-});
+jest.mock("@google-cloud/run", () => ({
+  __esModule: true,
+  JobsClient: jest.fn().mockImplementation(() => {
+    return {
+      runJob: mockRunJob,
+    };
+  }),
+}));
+
+import { JobsClient } from "@google-cloud/run";
 
 // Define expected job name structure (adjust defaults if needed)
 const PROJECT_ID = process.env.PROJECT_ID || "ai-jr-dev-production";

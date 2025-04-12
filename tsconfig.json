@@ -3,7 +3,9 @@
     "target": "ES2024",
     "module": "NodeNext",
     "moduleResolution": "nodenext",
+    "isolatedModules": true,
     "esModuleInterop": true,
+    "allowJs": true,
     "strict": true,
     "outDir": "dist",
     "types": ["jest"]
