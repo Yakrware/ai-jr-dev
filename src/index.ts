@@ -66,13 +66,21 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
 
       console.log(JSON.stringify(_response));
 
-      await octokit.rest.pulls.create({
+      const prResponse = await octokit.rest.pulls.create({
         owner: payload.repository.owner.login,
         repo: payload.repository.name,
         title: `[AI] ${payload.issue.title}`,
         head: branchName,
         base: payload.repository.default_branch,
       });
+
+      await octokit.rest.issues.createComment({
+        owner: payload.repository.owner.login,
+        repo: payload.repository.name,
+        issue_number: payload.issue.number,
+        body: `Pull request created: ${prResponse.data.html_url}`,
+      });
+
       // TODO: use image output to generate a PR summary, including any commands the user needs to run for the AI
     } catch (e: any) {
       await octokit.rest.issues.createComment({
