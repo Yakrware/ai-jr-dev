@@ -1,6 +1,6 @@
-import { generateIssuePrompt, generateReviewPrompt } from "./prompt";
+import { generateIssuePrompt, generateReviewPrompt } from "./prompt.js";
 import { Octokit } from "octokit"; // Import Octokit type
-import { ReviewAndComments } from "../queries"; // Import GraphQL response type
+import { ReviewAndComments } from "../queries.js"; // Import GraphQL response type
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 
 // Basic check for the system prompt inclusion - updated to match prompt.ts
@@ -111,7 +111,7 @@ const mockReviewSubmittedPayloadBase: WebhookPayloadPullRequestReviewSubmitted =
 
 // Mock Octokit instance
 const mockOctokit = {
-  graphql: vi.fn(),
+  graphql: jest.fn(),
 } as unknown as Octokit; // Type assertion for mocking
 
 // --- Tests ---
@@ -172,7 +172,7 @@ describe("generateIssuePrompt", () => {
 describe("generateReviewPrompt", () => {
   // Reset mocks before each test
   beforeEach(() => {
-    vi.resetAllMocks();
+    jest.resetAllMocks();
   });
 
   it("should generate a prompt with review body and comments", async () => {
@@ -207,7 +207,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
@@ -246,10 +246,12 @@ describe("generateReviewPrompt", () => {
             nodes: [
               {
                 id: "review-node-id-multi", // Match the payload review node_id
+                bodyText: "",
                 comments: {
                   nodes: [
                     {
                       path: "file.js",
+                      id: "",
                       line: 15,
                       startLine: 10, // Different start line
                       bodyText: "Address this range.",
@@ -262,7 +264,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
@@ -295,6 +297,7 @@ describe("generateReviewPrompt", () => {
             nodes: [
               {
                 id: "review-node-id-2", // Match the payload review node_id
+                bodyText: "",
                 comments: { nodes: [] }, // No comments
               },
             ],
@@ -302,7 +305,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
@@ -349,7 +352,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
@@ -382,12 +385,14 @@ describe("generateReviewPrompt", () => {
             nodes: [
               {
                 id: "review-node-id-4", // Match the payload review node_id
+                bodyText: "",
                 comments: {
                   nodes: [
                     {
                       path: "test.ts",
+                      id: "",
                       line: 5,
-                      startLine: null,
+                      startLine: 0,
                       bodyText: "Fix this.",
                     },
                   ],
@@ -398,7 +403,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
@@ -431,6 +436,7 @@ describe("generateReviewPrompt", () => {
             nodes: [
               {
                 id: "review-node-id-5", // Match the payload review node_id
+                bodyText: "",
                 comments: { nodes: [] }, // Empty comments array
               },
             ],
@@ -438,7 +444,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
@@ -469,6 +475,7 @@ describe("generateReviewPrompt", () => {
             nodes: [
               {
                 id: "review-node-id-6", // Match the payload review node_id
+                bodyText: "",
                 comments: { nodes: [] }, // No comments
               },
             ],
@@ -476,7 +483,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
@@ -504,6 +511,7 @@ describe("generateReviewPrompt", () => {
               // Does not contain 'review-node-id-not-found'
               {
                 id: "review-node-id-other",
+                bodyText: "",
                 comments: { nodes: [] },
               },
             ],
@@ -511,7 +519,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
