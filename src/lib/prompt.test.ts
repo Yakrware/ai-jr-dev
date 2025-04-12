@@ -191,12 +191,14 @@ describe("generateReviewPrompt", () => {
             nodes: [
               {
                 id: "review-node-id-1", // Match the payload review node_id
+                bodyText: "",
                 comments: {
                   nodes: [
                     {
                       path: "test.ts",
+                      id: "",
                       line: 5,
-                      startLine: null,
+                      startLine: 0,
                       bodyText: "Fix this.",
                     },
                   ],
@@ -336,12 +338,14 @@ describe("generateReviewPrompt", () => {
             nodes: [
               {
                 id: "review-node-id-3", // Match the payload review node_id
+                bodyText: "",
                 comments: {
                   nodes: [
                     {
                       path: "test.ts",
+                      id: "",
                       line: 5,
-                      startLine: null,
+                      startLine: 0,
                       bodyText: "Fix this.",
                     },
                   ],

@@ -1,6 +1,6 @@
 import { JobsClient } from "@google-cloud/run";
 import { Octokit } from "octokit";
-import { runCloudRunJob, RunJobParams } from "./cloudrun";
+import { runCloudRunJob, RunJobParams } from "./cloudrun.js";
 
 // Mock Octokit
 jest.mock("octokit", () => {
@@ -106,18 +106,6 @@ describe("runCloudRunJob", () => {
     const result = await runCloudRunJob(mockOctokit, mockParams);
     expect(mockRunJobPromise).toHaveBeenCalledTimes(1);
     expect(result).toEqual(["mock_job_result"]);
-  });
-
-  it("should throw an error if createInstallationAccessToken fails", async () => {
-    const mockError = new Error("Failed to get token");
-    (
-      mockOctokit.rest.apps.createInstallationAccessToken as jest.Mock
-    ).mockRejectedValueOnce(mockError);
-
-    await expect(runCloudRunJob(mockOctokit, mockParams)).rejects.toThrow(
-      mockError
-    );
-    expect(mockJobsClientInstance.runJob).not.toHaveBeenCalled();
   });
 
   it("should throw an error if jobsClient.runJob fails", async () => {

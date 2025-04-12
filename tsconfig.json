@@ -5,8 +5,9 @@
     "moduleResolution": "nodenext",
     "esModuleInterop": true,
     "strict": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "types": ["jest"]
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "**/*.test.*"]
+  "exclude": ["node_modules"]
 }
