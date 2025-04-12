@@ -9,6 +9,7 @@ export OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY}
 
 git clone ${REPO_NAME} -b ${BRANCH_NAME} --single-branch ${WORKDIR}
 
+cp .aider.model.settings.yml ${WORKDIR}/.aider.model.settings.yml
 cd "${WORKDIR}"
 
 # Set git config (For some reason setting this in the Dockerfile doesn't work!)
@@ -21,7 +22,7 @@ EDITOR_MODEL="${EDITOR_MODEL:-$MODEL}"
 WEAK_MODEL="${WEAK_MODEL:-$MODEL}"
 
 # Run aider command with specified models
-eval "aider --no-show-model-warnings --no-check-update --yes-always --model $MODEL --model-settings-file ../.aider.model.settings.yml --message \"${PROMPT}\""
+eval "aider --no-show-model-warnings --no-check-update --yes-always --model $MODEL --message \"${PROMPT}\""
 
 # Push changes
 git push origin $BRANCH_NAME
