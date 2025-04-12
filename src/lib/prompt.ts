@@ -16,8 +16,8 @@ export function generateIssuePrompt(
 ): string {
   const title = payload.issue.title;
   const body = payload.issue.body;
-  const issuePrompt = `Short description: ${title}
-More details: ${body}`;
+  let issuePrompt = `Short description: ${title}`;
+  if (body) issuePrompt += `\nMore details: ${body}`;
   return `${SYSTEM_PROMPT}\n\n${issuePrompt}`;
 }
 

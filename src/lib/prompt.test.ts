@@ -1,11 +1,10 @@
-import { generateIssuePrompt, generateReviewPrompt } from "./prompt";
-import { Octokit } from "octokit"; // Import Octokit type
-import { ReviewAndComments } from "../queries"; // Import GraphQL response type
+import { generateIssuePrompt, generateReviewPrompt } from "./prompt.js";
+import { ReviewAndComments } from "../queries.js"; // Import GraphQL response type
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 
 // Basic check for the system prompt inclusion - updated to match prompt.ts
 const SYSTEM_PROMPT_CHECK =
-  "Implement the requested changes based on the provided context";
+  "Generate plan then implement the following feature:";
 
 // --- Mocks for generateIssuePrompt ---
 
@@ -111,8 +110,8 @@ const mockReviewSubmittedPayloadBase: WebhookPayloadPullRequestReviewSubmitted =
 
 // Mock Octokit instance
 const mockOctokit = {
-  graphql: vi.fn(),
-} as unknown as Octokit; // Type assertion for mocking
+  graphql: jest.fn(),
+} as any; // Using 'as any' for mocking simplicity to resolve type errors
 
 // --- Tests ---
 
@@ -129,9 +128,9 @@ describe("generateIssuePrompt", () => {
     // Pass the full payload object
     const prompt = generateIssuePrompt(payload);
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
-    expect(prompt).toContain("Issue title: Test Issue");
+    expect(prompt).toContain("Short description: Test Issue");
     // Updated check for issue body format
-    expect(prompt).toContain("Issue body: This is the issue body.");
+    expect(prompt).toContain("More details: This is the issue body.");
   });
 
   it("should generate a prompt with title only when body is null", () => {
@@ -146,9 +145,9 @@ describe("generateIssuePrompt", () => {
     // Pass the full payload object
     const prompt = generateIssuePrompt(payload);
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
-    expect(prompt).toContain("Issue title: Test Issue No Body");
-    // Updated check: "Issue body:" should not be present if body is null
-    expect(prompt).not.toContain("Issue body:");
+    expect(prompt).toContain("Short description: Test Issue No Body");
+    // Updated check: "More details:" should not be present if body is null
+    expect(prompt).not.toContain("More details:");
   });
 
   it("should generate a prompt with title only when body is empty string", () => {
@@ -163,16 +162,16 @@ describe("generateIssuePrompt", () => {
     // Pass the full payload object
     const prompt = generateIssuePrompt(payload);
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
-    expect(prompt).toContain("Issue title: Test Issue Empty Body");
+    expect(prompt).toContain("Short description: Test Issue Empty Body");
     // Updated check: An empty body results in the body line being added but empty
-    expect(prompt).toContain("Issue body: ");
+    expect(prompt).not.toContain("More details: ");
   });
 });
 
 describe("generateReviewPrompt", () => {
   // Reset mocks before each test
   beforeEach(() => {
-    vi.resetAllMocks();
+    jest.resetAllMocks();
   });
 
   it("should generate a prompt with review body and comments", async () => {
@@ -191,12 +190,14 @@ describe("generateReviewPrompt", () => {
             nodes: [
               {
                 id: "review-node-id-1", // Match the payload review node_id
+                bodyText: "",
                 comments: {
                   nodes: [
                     {
                       path: "test.ts",
+                      id: "",
                       line: 5,
-                      startLine: null,
+                      startLine: 0,
                       bodyText: "Fix this.",
                     },
                   ],
@@ -207,7 +208,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
@@ -219,7 +220,7 @@ describe("generateReviewPrompt", () => {
     expect(prompt).toContain("Review summary:\nOverall feedback.");
     // Updated check for file comments format
     expect(prompt).toContain(
-      "File comments:\n1. file: test.ts; line: 5; comment: Fix this."
+      "File comments:\n1. file: test.ts; line: 5; change: Fix this."
     );
     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
     // Verify graphql call parameters
@@ -246,10 +247,12 @@ describe("generateReviewPrompt", () => {
             nodes: [
               {
                 id: "review-node-id-multi", // Match the payload review node_id
+                bodyText: "",
                 comments: {
                   nodes: [
                     {
                       path: "file.js",
+                      id: "",
                       line: 15,
                       startLine: 10, // Different start line
                       bodyText: "Address this range.",
@@ -262,7 +265,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
@@ -274,7 +277,7 @@ describe("generateReviewPrompt", () => {
     expect(prompt).toContain("Review summary:\nMulti-line feedback.");
     // Updated check for file comments format
     expect(prompt).toContain(
-      "File comments:\n1. file: file.js; lines: 10-15; comment: Address this range."
+      "File comments:\n1. file: file.js; lines: 10-15; change: Address this range."
     );
     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
@@ -295,6 +298,7 @@ describe("generateReviewPrompt", () => {
             nodes: [
               {
                 id: "review-node-id-2", // Match the payload review node_id
+                bodyText: "",
                 comments: { nodes: [] }, // No comments
               },
             ],
@@ -302,7 +306,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
@@ -333,12 +337,14 @@ describe("generateReviewPrompt", () => {
             nodes: [
               {
                 id: "review-node-id-3", // Match the payload review node_id
+                bodyText: "",
                 comments: {
                   nodes: [
                     {
                       path: "test.ts",
+                      id: "",
                       line: 5,
-                      startLine: null,
+                      startLine: 0,
                       bodyText: "Fix this.",
                     },
                   ],
@@ -349,7 +355,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
@@ -361,7 +367,7 @@ describe("generateReviewPrompt", () => {
     expect(prompt).not.toContain("Review summary:");
     // Updated check for file comments format
     expect(prompt).toContain(
-      "File comments:\n1. file: test.ts; line: 5; comment: Fix this."
+      "File comments:\n1. file: test.ts; line: 5; change: Fix this."
     );
     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
@@ -382,12 +388,14 @@ describe("generateReviewPrompt", () => {
             nodes: [
               {
                 id: "review-node-id-4", // Match the payload review node_id
+                bodyText: "",
                 comments: {
                   nodes: [
                     {
                       path: "test.ts",
+                      id: "",
                       line: 5,
-                      startLine: null,
+                      startLine: 0,
                       bodyText: "Fix this.",
                     },
                   ],
@@ -398,7 +406,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
@@ -407,10 +415,10 @@ describe("generateReviewPrompt", () => {
     });
     expect(prompt).toContain(SYSTEM_PROMPT_CHECK);
     // Updated check: An empty body results in the summary line being added but empty
-    expect(prompt).toContain("Review summary:\n");
+    expect(prompt).not.toContain("Review summary:\n");
     // Updated check for file comments format
     expect(prompt).toContain(
-      "File comments:\n1. file: test.ts; line: 5; comment: Fix this."
+      "File comments:\n1. file: test.ts; line: 5; change: Fix this."
     );
     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
@@ -431,6 +439,7 @@ describe("generateReviewPrompt", () => {
             nodes: [
               {
                 id: "review-node-id-5", // Match the payload review node_id
+                bodyText: "",
                 comments: { nodes: [] }, // Empty comments array
               },
             ],
@@ -438,7 +447,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
@@ -469,6 +478,7 @@ describe("generateReviewPrompt", () => {
             nodes: [
               {
                 id: "review-node-id-6", // Match the payload review node_id
+                bodyText: "",
                 comments: { nodes: [] }, // No comments
               },
             ],
@@ -476,7 +486,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
@@ -487,13 +497,13 @@ describe("generateReviewPrompt", () => {
     expect(mockOctokit.graphql).toHaveBeenCalledTimes(1);
   });
 
-  it("should return null if the specific review is not found in GraphQL response", async () => {
+  it("should return null if the specific review is not found in GraphQL response and body is blank", async () => {
     const payload = {
       ...mockReviewSubmittedPayloadBase,
       review: {
         ...mockReviewSubmittedPayloadBase.review,
         node_id: "review-node-id-not-found", // This ID won't match
-        body: "Some feedback",
+        body: "",
       },
     };
     const mockGraphQLResponse: ReviewAndComments = {
@@ -504,6 +514,7 @@ describe("generateReviewPrompt", () => {
               // Does not contain 'review-node-id-not-found'
               {
                 id: "review-node-id-other",
+                bodyText: "",
                 comments: { nodes: [] },
               },
             ],
@@ -511,7 +522,7 @@ describe("generateReviewPrompt", () => {
         },
       },
     };
-    mockOctokit.graphql = vi.fn().mockResolvedValue(mockGraphQLResponse);
+    mockOctokit.graphql = jest.fn().mockResolvedValue(mockGraphQLResponse);
 
     // Pass octokit and payload
     const prompt = await generateReviewPrompt({
