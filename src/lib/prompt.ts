@@ -3,10 +3,9 @@ import { ReviewAndComments, reviewAndComments } from "../queries.js"; // Import 
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 
 // System prompt to guide the AI
-const SYSTEM_PROMPT = `Your goal is to implement the requested changes based on the provided context (issue description or review comments).
-Apply the changes directly to the codebase. Add and edit any files necessary. Implement all changes.
-Ensure your changes are clean, efficient, and follow existing coding conventions.
-Do not add files that are normally generated (such as package-lock.json)`;
+const SYSTEM_PROMPT = `Generate plan to output a JSON array in the format of 
+[{file: filename, context: 'actions to take'}] then implement the following feature:
+`;
 
 /**
  * Generates a prompt for handling a new issue.
@@ -18,8 +17,8 @@ export function generateIssuePrompt(
 ): string {
   const title = payload.issue.title;
   const body = payload.issue.body;
-  const issuePrompt = `Issue title: ${title}
-Issue body: ${body}`;
+  const issuePrompt = `Short description: ${title}
+More details: ${body}`;
   return `${SYSTEM_PROMPT}\n\n${issuePrompt}`;
 }
 
@@ -60,7 +59,7 @@ export async function generateReviewPrompt({
             : `line: ${comment.line}`
         );
       }
-      commentString.push(`comment: ${comment.bodyText}`);
+      commentString.push(`change: ${comment.bodyText}`);
       return commentString.join("; ");
     })
     .join("\n");
