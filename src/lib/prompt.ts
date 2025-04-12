@@ -46,11 +46,6 @@ export async function generateReviewPrompt({
   });
 
   // Find the specific review and format its comments
-  console.log(
-    resp.repository.pullRequest.reviews.nodes.find(
-      (review) => review.id === payload.review.node_id
-    )
-  );
   const comments = resp.repository.pullRequest.reviews.nodes
     .find((review) => review.id === payload.review.node_id)
     ?.comments.nodes.map((comment, i) => {
