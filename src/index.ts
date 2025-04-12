@@ -66,16 +66,13 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
 
       console.log(JSON.stringify(_response));
 
-      await octokit.rest.pulls.create({
+      const prResponse = await octokit.rest.pulls.create({
         owner: payload.repository.owner.login,
         repo: payload.repository.name,
         title: `[AI] ${payload.issue.title}`,
         head: branchName,
         base: payload.repository.default_branch,
       });
-
-      // TODO: Add a comment to the issue linking the PR after creation is confirmed/successful?
-      // Need to capture the response from the first `pulls.create` call.
 
       await octokit.rest.issues.createComment({
         owner: payload.repository.owner.login,
