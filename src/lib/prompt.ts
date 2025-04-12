@@ -3,8 +3,7 @@ import { ReviewAndComments, reviewAndComments } from "../queries.js"; // Import 
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 
 // System prompt to guide the AI
-const SYSTEM_PROMPT = `Generate plan to output a JSON array in the format of 
-[{file: filename, context: 'actions to take'}] then implement the following feature:
+const SYSTEM_PROMPT = `Generate plan then implement the following feature:
 `;
 
 /**
