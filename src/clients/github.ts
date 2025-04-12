@@ -1,11 +1,11 @@
-import { App, Octokit } from "octokit";
-import { WebhookEventMap } from "@octokit/webhooks-types";
+import { Octokit } from "octokit";
+import { WebhookEventDefinition } from "@octokit/webhooks/types"; // Correct import
 import { kebabCase } from "../utilities.js"; // Assuming kebabCase is needed here or passed in
 
 // Type definitions for payloads used in this client
-type IssuesLabeledPayload = WebhookEventMap["issues.labeled"];
+type IssuesLabeledPayload = WebhookEventDefinition<"issues.labeled">; // Correct usage
 type PullRequestReviewSubmittedPayload =
-  WebhookEventMap["pull_request_review.submitted"];
+  WebhookEventDefinition<"pull_request_review.submitted">; // Correct usage
 
 /**
  * Creates an initial "I'm on it!" comment on an issue.
@@ -23,10 +23,10 @@ export async function createWorkingComment(
 }
 
 /**
- * Gets or creates a branch based on the issue details.
+ * Fetches or creates a branch based on the issue details.
  * Returns the branch name.
  */
-export async function ensureBranchExists(
+export async function fetchBranch(
   octokit: Octokit,
   payload: IssuesLabeledPayload
 ): Promise<string> {
@@ -58,14 +58,14 @@ export async function ensureBranchExists(
 }
 
 /**
- * Creates a Pull Request for the given branch.
- * Returns the URL of the created PR.
+ * Creates a Pull Request for the given branch and comments on the issue.
+ * Returns the full PR response object.
  */
 export async function createPullRequest(
   octokit: Octokit,
   payload: IssuesLabeledPayload,
   branchName: string
-): Promise<string> {
+) { // Return type inferred or use specific Octokit response type
   const prResponse = await octokit.rest.pulls.create({
     owner: payload.repository.owner.login,
     repo: payload.repository.name,
@@ -74,7 +74,11 @@ export async function createPullRequest(
     base: payload.repository.default_branch,
     // TODO: Add issue reference to PR body
   });
-  return prResponse.data.html_url;
+
+  // Call createPrLinkedComment internally
+  await createPrLinkedComment(octokit, payload, prResponse.data.html_url);
+
+  return prResponse; // Return the full response object
 }
 
 /**

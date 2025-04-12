@@ -24,10 +24,7 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
     try {
       await githubClient.createWorkingComment(octokit, payload);
 
-      const branchName = await githubClient.ensureBranchExists(
-        octokit,
-        payload
-      );
+      const branchName = await githubClient.fetchBranch(octokit, payload);
 
       // Generate prompt using the payload directly
       const prompt = generateIssuePrompt(payload);
@@ -41,13 +38,14 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
 
       console.log(JSON.stringify(_response)); // Log Cloud Run response
 
-      const prUrl = await githubClient.createPullRequest(
+      // createPullRequest now handles commenting and returns the full response
+      const prResponse = await githubClient.createPullRequest(
         octokit,
         payload,
         branchName
       );
 
-      await githubClient.createPrLinkedComment(octokit, payload, prUrl);
+      console.log(`Pull request created: ${prResponse.data.html_url}`);
 
       // TODO: use image output to generate a PR summary, including any commands the user needs to run for the AI
     } catch (e: any) {
