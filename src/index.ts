@@ -1,9 +1,9 @@
-import { App } from "octokit";
+import { App, Octokit } from "octokit";
 import { createNodeMiddleware } from "@octokit/webhooks";
 import { runCloudRunJob } from "./clients/cloudrun.js";
 import dotenv from "dotenv";
-import { kebabCase } from "./utilities.js";
-import { generateIssuePrompt, generateReviewPrompt } from "./lib/prompt.js"; // Import updated functions
+import { generateIssuePrompt, generateReviewPrompt } from "./lib/prompt.js";
+import * as githubClient from "./clients/github.js"; // Import the new GitHub client
 
 dotenv.config();
 
@@ -18,42 +18,14 @@ const octoApp = new App({
 const WATCHED_LABELS = ["aider", "ai-jr-dev"];
 
 octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
-  if (!payload.installation) return;
+  if (!payload.installation || !payload.label?.name) return;
 
-  if (payload.label?.name && WATCHED_LABELS.includes(payload.label?.name)) {
-    await octokit.rest.issues.createComment({
-      owner: payload.repository.owner.login,
-      repo: payload.repository.name,
-      issue_number: payload.issue.number,
-      body: "I'm on it!",
-    });
-
-    const branchName = `ai-jr-dev/${payload.issue.number}-${kebabCase(
-      payload.issue.title
-    )}`;
-
+  if (WATCHED_LABELS.includes(payload.label.name)) {
     try {
-      // getBranch raises an error when branch is not found, so we use a try/catch for flow control
-      await octokit.rest.repos.getBranch({
-        repo: payload.repository.name,
-        owner: payload.repository.owner.login,
-        branch: branchName,
-      });
-    } catch {
-      const defaultBranch = await octokit.rest.repos.getBranch({
-        repo: payload.repository.name,
-        owner: payload.repository.owner.login,
-        branch: payload.repository.default_branch,
-      });
-      await octokit.rest.git.createRef({
-        repo: payload.repository.name,
-        owner: payload.repository.owner.login,
-        sha: defaultBranch.data.commit.sha,
-        ref: `refs/heads/${branchName}`,
-      });
-    }
+      await githubClient.createWorkingComment(octokit, payload);
 
-    try {
+      const branchName = await githubClient.fetchBranch(octokit, payload);
+
       // Generate prompt using the payload directly
       const prompt = generateIssuePrompt(payload);
 
@@ -64,38 +36,17 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
         branchName: branchName,
       });
 
-      console.log(JSON.stringify(_response));
-
-      const prResponse = await octokit.rest.pulls.create({
-        owner: payload.repository.owner.login,
-        repo: payload.repository.name,
-        title: `[AI] ${payload.issue.title}`,
-        head: branchName,
-        base: payload.repository.default_branch,
-      });
-
-      await octokit.rest.issues.createComment({
-        owner: payload.repository.owner.login,
-        repo: payload.repository.name,
-        issue_number: payload.issue.number,
-        body: `Pull request created: ${prResponse.data.html_url}`,
-      });
+      // createPullRequest now handles commenting and returns the full response
+      const prResponse = await githubClient.createPullRequest(
+        octokit,
+        payload,
+        branchName
+      );
 
       // TODO: use image output to generate a PR summary, including any commands the user needs to run for the AI
     } catch (e: any) {
-      await octokit.rest.issues.createComment({
-        owner: payload.repository.owner.login,
-        repo: payload.repository.name,
-        issue_number: payload.issue.number,
-        body: "I'm sorry, I've actually had an error that I don't know how to handle. You can try again, but if it keeps failing, I'll have my own Sr dev's review the error.",
-      });
-      await octokit.rest.issues.removeLabel({
-        owner: payload.repository.owner.login,
-        repo: payload.repository.name,
-        issue_number: payload.issue.number,
-        name: payload.label?.name,
-      });
-      console.error("Error processing issue label event:", JSON.stringify(e)); // Log specific error context
+      // Use the centralized error handler
+      await githubClient.handleIssueError(octokit, payload, e);
     }
   }
 });
@@ -137,21 +88,10 @@ octoApp.webhooks.on(
         // TODO: clean up - use graphql API to hide all change requests
         // TODO: Mark any floating comments as resolved.
 
-        // Reset review request
-        if (payload.review.user?.login) {
-          await octokit.rest.pulls.requestReviewers({
-            owner: payload.repository.owner.login,
-            repo: payload.repository.name,
-            pull_number: payload.pull_request.number,
-            reviewers: [payload.review.user.login],
-          });
-        } else {
-          console.warn(
-            `Could not re-request review for PR #${payload.pull_request.number} as reviewer login is missing.`
-          );
-        }
+        await githubClient.resetReviewRequest(octokit, payload);
       } catch (e: any) {
-        console.error("Error processing review submission event:", e); // Log specific error context
+        // Consider adding a specific error handler for review events if needed
+        console.error("Error processing review submission event:", e);
       }
     }
   }
