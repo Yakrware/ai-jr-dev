@@ -28,6 +28,9 @@ const mockGetEntriesPromise = jest.fn().mockResolvedValue([
   [
     {
       data: "I have no idea what the shape of data is",
+      metadata: {
+        textPayload: "I have no idea what the shape of data is",
+      },
     },
   ],
 ]);
