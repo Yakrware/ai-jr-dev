@@ -71,7 +71,6 @@ export async function createPullRequest(
     title: `[AI] ${payload.issue.title}`,
     head: branchName,
     base: payload.repository.default_branch,
-    // TODO: Add issue reference to PR body
   });
 
   // Call createPrLinkedComment internally
