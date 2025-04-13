@@ -11,6 +11,7 @@
     "pretest": "npm run build"
   },
   "dependencies": {
+    "@google-cloud/logging": "^11.2.0",
     "@google-cloud/run": "^2.0.1",
     "dotenv": "^16.4.7",
     "mongodb": "^6.15.0",

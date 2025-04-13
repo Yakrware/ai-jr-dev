@@ -1,13 +1,18 @@
 import type { Octokit } from "octokit";
 import type { RunJobParams } from "./cloudrun.js";
 import type { JobsClient as JobsClientType } from "@google-cloud/run";
+import type { Logging as LoggingType } from "@google-cloud/logging";
 
 // Mock the @google-cloud/run module
-const mockRunJobPromise = jest.fn().mockResolvedValue(["mock_job_result"]);
+const mockRunJobPromise = jest.fn().mockResolvedValue([
+  {
+    logUri:
+      "https://console.cloud.google.com/logs/viewer?project=ai-jr-dev-production&advancedFilter=resource.type%3D%22cloud_run_job%22%0Aresource.labels.job_name%3D%22aider-runner%22%0Aresource.labels.location%3D%22us-central1%22%0Alabels.%22run.googleapis.com/execution_name%22%3D%22aider-runner-gbk8c%22",
+  },
+]);
 const mockRunJob = jest.fn().mockResolvedValue([
   {
     promise: mockRunJobPromise,
-    result: {},
   },
 ]);
 // @ts-ignore
@@ -19,9 +24,26 @@ jest.unstable_mockModule("@google-cloud/run", () => ({
     };
   }),
 }));
-const { runCloudRunJob } = await import("./cloudrun.js");
+const mockGetEntriesPromise = jest.fn().mockResolvedValue([
+  [
+    {
+      data: "I have no idea what the shape of data is",
+    },
+  ],
+]);
+// @ts-ignore
+jest.unstable_mockModule("@google-cloud/logging", () => ({
+  __esModule: true,
+  Logging: jest.fn().mockImplementation(() => {
+    return {
+      getEntries: mockGetEntriesPromise,
+    };
+  }),
+}));
 
+const { runCloudRunJob } = await import("./cloudrun.js");
 const { JobsClient } = await import("@google-cloud/run");
+const { Logging } = await import("@google-cloud/logging");
 
 // Define expected job name structure (adjust defaults if needed)
 const PROJECT_ID = process.env.PROJECT_ID || "ai-jr-dev-production";
@@ -32,6 +54,7 @@ const EXPECTED_FULL_JOB_NAME = `projects/${PROJECT_ID}/locations/${LOCATION_ID}/
 describe("runCloudRunJob", () => {
   let mockOctokit: Octokit;
   let mockJobsClientInstance: JobsClientType;
+  let mockLoggingInstance: LoggingType;
 
   const mockParams: RunJobParams = {
     installationId: 12345,
@@ -55,6 +78,7 @@ describe("runCloudRunJob", () => {
     } as any;
     // Get the mock JobsClient instance created by the mock constructor
     mockJobsClientInstance = new JobsClient();
+    mockLoggingInstance = new Logging();
   });
 
   it("should instantiate JobsClient", async () => {
@@ -101,7 +125,7 @@ describe("runCloudRunJob", () => {
   it("should return the result of operation.promise()", async () => {
     const result = await runCloudRunJob(mockOctokit, mockParams);
     expect(mockRunJobPromise).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({});
+    expect(result).toEqual("I have no idea what the shape of data is");
   });
 
   it("should throw an error if jobsClient.runJob fails", async () => {

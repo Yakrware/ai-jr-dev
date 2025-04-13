@@ -1,3 +1,4 @@
+import { Logging } from "@google-cloud/logging";
 import { JobsClient, protos } from "@google-cloud/run";
 import { Octokit } from "octokit";
 
@@ -57,9 +58,15 @@ export async function runCloudRunJob(
       overrides,
     });
 
-    await operation.promise();
-
-    return operation.result;
+    const [response] = await operation.promise();
+    const logUri = new URL(response.logUri as string);
+    const logging = new Logging();
+    const [entries] = await logging.getEntries({
+      resourceNames: [`projects/${logUri.searchParams.get("project")}`],
+      filter: decodeURI(logUri.searchParams.get("advancedFilters") as string),
+    });
+    console.log(JSON.stringify(entries));
+    return entries.map((e) => e.data).join("\n");
   } catch (error) {
     if (process.env.NODE_ENV !== "test")
       console.error("Error running Cloud Run job:", error);
