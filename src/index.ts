@@ -4,6 +4,7 @@ import { runCloudRunJob } from "./clients/cloudrun.js";
 import dotenv from "dotenv";
 import { generateIssuePrompt, generateReviewPrompt } from "./lib/prompt.js";
 import * as githubClient from "./clients/github.js"; // Import the new GitHub client
+import { getEnterpriseClient } from "./clients/mongodb.js";
 
 dotenv.config();
 
@@ -15,6 +16,10 @@ const octoApp = new App({
   },
 });
 
+const isString = (item: string | undefined): item is string => {
+  return !!item;
+};
+
 const WATCHED_LABELS = ["aider", "ai-jr-dev"];
 
 octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
@@ -22,6 +27,17 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
 
   if (WATCHED_LABELS.includes(payload.label.name)) {
     try {
+      const enterprise = await getEnterpriseClient(
+        [payload.issue.user?.login, payload.organization?.login].filter(
+          isString
+        )
+      );
+      if (!enterprise) {
+        // TODO: check for active subscription
+        // TODO: check for available PR count
+        return; // no subscription, no enterprise, don't do anything
+      }
+
       await githubClient.createWorkingComment(octokit, payload);
 
       const branchName = await githubClient.fetchBranch(octokit, payload);
@@ -29,17 +45,17 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       // Generate prompt using the payload directly
       const prompt = generateIssuePrompt(payload);
 
-      const [_response] = await runCloudRunJob(octokit, {
+      const result = await runCloudRunJob(octokit, {
         installationId: payload.installation.id,
         prompt: prompt,
         cloneUrlWithoutToken: payload.repository.clone_url,
         branchName: branchName,
       });
 
+      console.log(JSON.stringify(result));
       // createPullRequest now handles commenting and returns the full response
       await githubClient.createPullRequest(octokit, payload, branchName);
-
-      // TODO: use image output to generate a PR summary, including any commands the user needs to run for the AI
+      // TODO: Add to the pull request count.
     } catch (e: any) {
       // Use the centralized error handler
       await githubClient.handleIssueError(octokit, payload, e);

@@ -57,7 +57,9 @@ export async function runCloudRunJob(
       overrides,
     });
 
-    return operation.promise();
+    await operation.promise();
+
+    return operation.result;
   } catch (error) {
     if (process.env.NODE_ENV !== "test")
       console.error("Error running Cloud Run job:", error);
