@@ -35,7 +35,6 @@ export async function fetchBranch(
   )}`;
 
   try {
-    // getBranch raises an error when branch is not found
     await octokit.rest.repos.getBranch({
       repo: payload.repository.name,
       owner: payload.repository.owner.login,
