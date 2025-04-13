@@ -95,7 +95,23 @@ octoApp.webhooks.on(
   }
 );
 
-// TODO: Reference Issue when opening PR
-// TODO: If an ai PR is merged, close issue that spawned it.
+octoApp.webhooks.on("pull_request.closed", async ({ payload, octokit }) => {
+  if (!payload.installation) return;
+
+  // Check if the PR was merged and created by our app
+  if (
+    payload.pull_request.merged &&
+    payload.pull_request.user?.id === Number(process.env.APP_USER_ID)
+  ) {
+    try {
+      await githubClient.closeIssueForMergedPr(octokit, payload);
+    } catch (e: any) {
+      console.error("Error processing PR closed event:", e);
+      // Potentially add error handling comment on the PR or related issue if the client function didn't handle it
+    }
+  }
+});
+
+// TODO: Reference Issue when opening PR (Already done implicitly via branch name and PR title?)
 
 export const webhook = createNodeMiddleware(octoApp.webhooks, { path: "/" });
