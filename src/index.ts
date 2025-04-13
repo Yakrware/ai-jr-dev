@@ -98,11 +98,14 @@ octoApp.webhooks.on(
 octoApp.webhooks.on("pull_request.closed", async ({ payload, octokit }) => {
   if (!payload.installation) return;
 
-  // Check if the PR was merged and created by our app
-  if (
-    payload.pull_request.merged &&
-    payload.pull_request.user?.id === Number(process.env.APP_USER_ID)
-  ) {
+  // Check if the PR was merged and (created by our app OR has a watched label)
+  const isAppPr =
+    payload.pull_request.user?.id === Number(process.env.APP_USER_ID);
+  const hasWatchedLabel = payload.pull_request.labels.some((label) =>
+    WATCHED_LABELS.includes(label.name)
+  );
+
+  if (payload.pull_request.merged && (isAppPr || hasWatchedLabel)) {
     try {
       await githubClient.closeIssueForMergedPr(octokit, payload);
     } catch (e: any) {
