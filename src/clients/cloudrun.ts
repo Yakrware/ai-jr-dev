@@ -61,10 +61,11 @@ export async function runCloudRunJob(
     const [response] = await operation.promise();
     const logUri = new URL(response.logUri as string);
     const logging = new Logging();
-    console.log(decodeURI(logUri.search as string));
     const [entries] = await logging.getEntries({
       resourceNames: [`projects/${logUri.searchParams.get("project")}`],
-      filter: decodeURI(logUri.searchParams.get("advancedFilters") as string),
+      filter: decodeURI(
+        decodeURI(logUri.searchParams.get("advancedFilter") as string)
+      ),
     });
     return entries
       .map((e) => e.metadata.textPayload)
