@@ -115,6 +115,4 @@ octoApp.webhooks.on("pull_request.closed", async ({ payload, octokit }) => {
   }
 });
 
-// TODO: Reference Issue when opening PR (Already done implicitly via branch name and PR title?)
-
 export const webhook = createNodeMiddleware(octoApp.webhooks, { path: "/" });
