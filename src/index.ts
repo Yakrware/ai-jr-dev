@@ -37,11 +37,7 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       });
 
       // createPullRequest now handles commenting and returns the full response
-      const prResponse = await githubClient.createPullRequest(
-        octokit,
-        payload,
-        branchName
-      );
+      await githubClient.createPullRequest(octokit, payload, branchName);
 
       // TODO: use image output to generate a PR summary, including any commands the user needs to run for the AI
     } catch (e: any) {
