@@ -7,6 +7,7 @@ const mockRunJobPromise = jest.fn().mockResolvedValue(["mock_job_result"]);
 const mockRunJob = jest.fn().mockResolvedValue([
   {
     promise: mockRunJobPromise,
+    result: {},
   },
 ]);
 // @ts-ignore
@@ -100,7 +101,7 @@ describe("runCloudRunJob", () => {
   it("should return the result of operation.promise()", async () => {
     const result = await runCloudRunJob(mockOctokit, mockParams);
     expect(mockRunJobPromise).toHaveBeenCalledTimes(1);
-    expect(result).toEqual(["mock_job_result"]);
+    expect(result).toEqual({});
   });
 
   it("should throw an error if jobsClient.runJob fails", async () => {
