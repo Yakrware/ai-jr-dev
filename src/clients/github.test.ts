@@ -152,7 +152,9 @@ describe("GitHub Client Functions", () => {
     )}`;
 
     it("should return existing branch name if found", async () => {
-      (mockOctokit.rest.repos.getBranch as jest.Mock).mockResolvedValueOnce({
+      (
+        mockOctokit.rest.repos.getBranch as unknown as jest.Mock
+      ).mockResolvedValueOnce({
         /* mock branch data */
       });
       const branchName = await fetchBranch(
@@ -171,13 +173,15 @@ describe("GitHub Client Functions", () => {
 
     it("should create and return new branch name if not found", async () => {
       const defaultBranchSha = "default-branch-sha";
-      (mockOctokit.rest.repos.getBranch as jest.Mock)
+      (mockOctokit.rest.repos.getBranch as unknown as jest.Mock)
         .mockRejectedValueOnce(new Error("Not Found")) // First call fails (branch check)
         .mockResolvedValueOnce({
           // Second call succeeds (get default branch)
           data: { commit: { sha: defaultBranchSha } },
         });
-      (mockOctokit.rest.git.createRef as jest.Mock).mockResolvedValueOnce({}); // Mock createRef success
+      (
+        mockOctokit.rest.git.createRef as unknown as jest.Mock
+      ).mockResolvedValueOnce({}); // Mock createRef success
 
       const branchName = await fetchBranch(
         mockOctokit,
@@ -220,13 +224,13 @@ describe("GitHub Client Functions", () => {
 
     beforeEach(() => {
       // Mock the pulls.create call
-      (mockOctokit.rest.pulls.create as jest.Mock).mockResolvedValue(
+      (mockOctokit.rest.pulls.create as unknown as jest.Mock).mockResolvedValue(
         mockPrResponse
       );
       // Mock the issues.createComment call (used by createPrLinkedComment)
-      (mockOctokit.rest.issues.createComment as jest.Mock).mockResolvedValue(
-        {}
-      );
+      (
+        mockOctokit.rest.issues.createComment as unknown as jest.Mock
+      ).mockResolvedValue({});
     });
 
     it("should call pulls.create with correct parameters", async () => {
@@ -294,10 +298,12 @@ describe("GitHub Client Functions", () => {
 
     beforeEach(() => {
       // Mock the API calls
-      (mockOctokit.rest.issues.createComment as jest.Mock).mockResolvedValue(
-        {}
-      );
-      (mockOctokit.rest.issues.removeLabel as jest.Mock).mockResolvedValue({});
+      (
+        mockOctokit.rest.issues.createComment as unknown as jest.Mock
+      ).mockResolvedValue({});
+      (
+        mockOctokit.rest.issues.removeLabel as unknown as jest.Mock
+      ).mockResolvedValue({});
     });
 
     it("should create an error comment", async () => {
@@ -334,9 +340,9 @@ describe("GitHub Client Functions", () => {
 
     it("should catch errors during error handling itself", async () => {
       const handlingError = new Error("Failed to create comment");
-      (mockOctokit.rest.issues.createComment as jest.Mock).mockRejectedValue(
-        handlingError
-      );
+      (
+        mockOctokit.rest.issues.createComment as unknown as jest.Mock
+      ).mockRejectedValue(handlingError);
       const consoleErrorSpy = jest
         .spyOn(console, "error")
         .mockImplementation(() => {}); // Suppress console output during test
