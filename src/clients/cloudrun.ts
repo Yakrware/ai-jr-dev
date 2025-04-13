@@ -70,6 +70,7 @@ export async function runCloudRunJob(
     return entries
       .map((e) => e.metadata.textPayload)
       .filter((x) => x)
+      .reverse()
       .join("\n");
   } catch (error) {
     if (process.env.NODE_ENV !== "test")

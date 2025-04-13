@@ -52,10 +52,14 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
         branchName: branchName,
       });
 
-      console.log(JSON.stringify(result));
-      // createPullRequest now handles commenting and returns the full response
+      // decide if the job did what it was meant to.
+      // if there's no commit, see if it's asked for any files
+      // try again with missing files
+
+      // create a pull request summary
       await githubClient.createPullRequest(octokit, payload, branchName);
-      // TODO: Add to the pull request count.
+      // parse out price total
+      // save PR and cost on installation
     } catch (e: any) {
       // Use the centralized error handler
       await githubClient.handleIssueError(octokit, payload, e);
@@ -94,12 +98,12 @@ octoApp.webhooks.on(
           branchName: payload.pull_request.head.ref,
         });
 
-        console.log(JSON.stringify(result));
         // TODO: use image output to make any comments, such as commands that the AI needs the user's help running
         // TODO: clean up - use graphql API to hide all change requests
         // TODO: Mark any floating comments as resolved.
 
         await githubClient.resetReviewRequest(octokit, payload);
+        // add to the current PR cost
       } catch (e: any) {
         // Consider adding a specific error handler for review events if needed
         console.error("Error processing review submission event:", e);
