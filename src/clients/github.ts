@@ -1,11 +1,11 @@
 import { Octokit } from "octokit";
-import { WebhookEventDefinition } from "@octokit/webhooks/types"; // Correct import
-import { kebabCase } from "../utilities.js"; // Assuming kebabCase is needed here or passed in
+import { WebhookEventDefinition } from "@octokit/webhooks/types";
+import { kebabCase } from "../utilities.js";
 
 // Type definitions for payloads used in this client
-type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">; // Correct usage
+type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">;
 type PullRequestReviewSubmittedPayload =
-  WebhookEventDefinition<"pull-request-review-submitted">; // Correct usage
+  WebhookEventDefinition<"pull-request-review-submitted">;
 
 /**
  * Creates an initial "I'm on it!" comment on an issue.
