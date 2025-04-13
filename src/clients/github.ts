@@ -6,6 +6,7 @@ import { kebabCase } from "../utilities.js";
 type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">;
 type PullRequestReviewSubmittedPayload =
   WebhookEventDefinition<"pull-request-review-submitted">;
+type PullRequestClosedPayload = WebhookEventDefinition<"pull-request-closed">;
 
 /**
  * Creates an initial "I'm on it!" comment on an issue.
@@ -142,5 +143,64 @@ export async function resetReviewRequest(
     console.warn(
       `Could not re-request review for PR #${payload.pull_request.number} as reviewer login is missing.`
     );
+  }
+}
+
+/**
+ * Comments on and closes the corresponding issue when an AI-generated PR is merged.
+ */
+export async function closeIssueForMergedPr(
+  octokit: Octokit,
+  payload: PullRequestClosedPayload
+): Promise<void> {
+  const branchName = payload.pull_request.head.ref;
+  // Matches branches like ai-jr-dev/123-some-title
+  const match = branchName.match(/^ai-jr-dev\/(\d+)-/);
+
+  if (!match || !match[1]) {
+    console.warn(
+      `PR #${payload.pull_request.number}: Could not extract issue number from branch name: ${branchName}. Skipping issue close.`
+    );
+    return;
+  }
+
+  const issueNumber = parseInt(match[1], 10);
+
+  try {
+    // Comment on the issue
+    await octokit.rest.issues.createComment({
+      owner: payload.repository.owner.login,
+      repo: payload.repository.name,
+      issue_number: issueNumber,
+      body: `Pull request #${payload.pull_request.number} merged. Closing this issue.`,
+    });
+
+    // Close the issue
+    await octokit.rest.issues.update({
+      owner: payload.repository.owner.login,
+      repo: payload.repository.name,
+      issue_number: issueNumber,
+      state: "closed",
+    });
+
+    console.log(
+      `Closed issue #${issueNumber} for merged PR #${payload.pull_request.number}`
+    );
+  } catch (error) {
+    console.error(
+      `Failed to close issue #${issueNumber} for PR #${payload.pull_request.number}:`,
+      error
+    );
+    // Optionally, add a comment to the PR or issue indicating the failure to close
+    try {
+      await octokit.rest.issues.createComment({
+        owner: payload.repository.owner.login,
+        repo: payload.repository.name,
+        issue_number: issueNumber,
+        body: `Attempted to close this issue after PR #${payload.pull_request.number} was merged, but encountered an error. Please close manually if appropriate.`,
+      });
+    } catch (commentError) {
+      console.error("Failed to add error comment to issue:", commentError);
+    }
   }
 }
