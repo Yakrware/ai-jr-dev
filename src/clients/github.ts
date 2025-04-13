@@ -6,7 +6,7 @@ import { kebabCase } from "../utilities.js";
 type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">;
 type PullRequestReviewSubmittedPayload =
   WebhookEventDefinition<"pull-request-review-submitted">;
-type PullRequestClosedPayload = WebhookEventDefinition<"pull_request.closed">;
+type PullRequestClosedPayload = WebhookEventDefinition<"pull-request-closed">;
 
 /**
  * Creates an initial "I'm on it!" comment on an issue.
