@@ -65,7 +65,7 @@ export async function createPullRequest(
   octokit: Octokit,
   payload: IssuesLabeledPayload,
   branchName: string
-) { // Return type inferred or use specific Octokit response type
+) {
   const prResponse = await octokit.rest.pulls.create({
     owner: payload.repository.owner.login,
     repo: payload.repository.name,
@@ -127,9 +127,9 @@ export async function handleIssueError(
 }
 
 /**
- * Re-requests a review on a Pull Request from the user who submitted the review.
+ * Resets the review request status on a Pull Request, typically asking the original reviewer again.
  */
-export async function requestReviewAgain(
+export async function resetReviewRequest(
   octokit: Octokit,
   payload: PullRequestReviewSubmittedPayload
 ): Promise<void> {

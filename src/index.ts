@@ -36,16 +36,12 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
         branchName: branchName,
       });
 
-      console.log(JSON.stringify(_response)); // Log Cloud Run response
-
       // createPullRequest now handles commenting and returns the full response
       const prResponse = await githubClient.createPullRequest(
         octokit,
         payload,
         branchName
       );
-
-      console.log(`Pull request created: ${prResponse.data.html_url}`);
 
       // TODO: use image output to generate a PR summary, including any commands the user needs to run for the AI
     } catch (e: any) {
@@ -92,8 +88,7 @@ octoApp.webhooks.on(
         // TODO: clean up - use graphql API to hide all change requests
         // TODO: Mark any floating comments as resolved.
 
-        // Reset review request using the client function
-        await githubClient.requestReviewAgain(octokit, payload);
+        await githubClient.resetReviewRequest(octokit, payload);
       } catch (e: any) {
         // Consider adding a specific error handler for review events if needed
         console.error("Error processing review submission event:", e);
