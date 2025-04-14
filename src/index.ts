@@ -88,8 +88,8 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       // if there's no commit, see if it's asked for any files
       // try again with missing files
 
-      // create a pull request summary
-      await githubClient.createPullRequest(octokit, payload, branchName);
+      // create a pull request summary using the job output
+      await githubClient.createPullRequest(octokit, payload, branchName, result);
       // parse out price total
       // save PR and cost on installation
     } catch (e: any) {

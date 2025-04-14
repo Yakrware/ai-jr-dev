@@ -1,6 +1,7 @@
 import { Octokit } from "octokit";
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 import { kebabCase } from "../utilities.js";
+import { generatePrDescription } from "./openai.js";
 
 // Type definitions for payloads used in this client
 type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">;
@@ -99,19 +100,32 @@ export async function fetchBranch(
 
 /**
  * Creates a Pull Request for the given branch and comments on the issue.
+ * Generates a description based on the job output.
  * Returns the full PR response object.
  */
 export async function createPullRequest(
   octokit: Octokit,
   payload: IssuesLabeledPayload,
-  branchName: string
+  branchName: string,
+  jobOutput: string
 ) {
+  let prBody = "AI-generated changes."; // Default body
+
+  try {
+    // Generate PR description from job output
+    prBody = await generatePrDescription(jobOutput);
+  } catch (error) {
+    console.error("Failed to generate PR description:", error);
+    // Use the default body defined above
+  }
+
   const prResponse = await octokit.rest.pulls.create({
     owner: payload.repository.owner.login,
     repo: payload.repository.name,
     title: `[AI] ${payload.issue.title}`,
     head: branchName,
     base: payload.repository.default_branch,
+    body: prBody, // Use the generated or default body
   });
 
   // Call createPrLinkedComment internally

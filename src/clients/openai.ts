@@ -50,8 +50,42 @@ export async function identifyMissingFiles(
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
   } catch (error) {
-    console.error("Error calling OpenRouter API:", error);
+    console.error("Error calling OpenRouter API for identifyMissingFiles:", error);
     // Decide if we want to throw or just return empty list
     return []; // Return empty list on error to avoid breaking the flow
+  }
+}
+
+/**
+ * Generates a pull request description based on the job output log.
+ *
+ * @param jobOutput The output/logs from the job run.
+ * @returns A promise resolving to a string containing the PR description.
+ */
+export async function generatePrDescription(jobOutput: string): Promise<string> {
+  const defaultDescription = "AI-generated changes. Description generation failed or log was unclear.";
+  try {
+    const completion = await openAIClient.chat.completions.create({
+      model: MODEL_NAME,
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert technical writer. Analyze the following job output log which contains details of code changes made by an AI assistant. Generate a concise summary (2-4 sentences) of the changes made, suitable for a pull request description. Use simple, layman's terms. Do NOT include any code snippets, file paths, or overly technical jargon. Focus on *what* was changed and *why* based on the log. If the log indicates no changes were made or is unclear, state that clearly.`,
+        },
+        {
+          role: "user",
+          content: `Job Output Log:\n---\n${jobOutput}\n---`,
+        },
+      ],
+      temperature: 0.5, // Moderate temperature for creative summarization
+      max_tokens: 150, // Allow slightly longer description
+    });
+
+    const content = completion.choices[0]?.message?.content?.trim();
+    return content || defaultDescription; // Return generated content or default if empty
+
+  } catch (error) {
+    console.error("Error calling OpenRouter API for generatePrDescription:", error);
+    return defaultDescription; // Return default description on error
   }
 }
