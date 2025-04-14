@@ -63,9 +63,6 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       });
 
       if (!changed) {
-        console.log(
-          `Job for issue ${payload.issue.number} did not result in changes. Analyzing for missing files.`
-        );
         // Analyze the first run's output to see if files were missing
         const files = await identifyMissingFiles(prompt, result);
 
@@ -78,10 +75,6 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
           // Update job params with files for the second run
           const secondRunParams = { ...jobParams, files };
           result = await runCloudRunJob(octokit, secondRunParams);
-        } else {
-          // If no specific files identified, run the job again with original params
-          // Consider if a modified prompt is needed here instead/as well.
-          result = await runCloudRunJob(octokit, jobParams);
         }
 
         // Optional: Check again after the second run
@@ -94,10 +87,6 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
           `Job for issue ${payload.issue.number} second run changed files: ${changedAfterSecondRun}`
         );
       }
-
-      // decide if the job did what it was meant to.
-      // if there's no commit, see if it's asked for any files
-      // try again with missing files
 
       // create a pull request summary
       await githubClient.createPullRequest(octokit, payload, branchName);
