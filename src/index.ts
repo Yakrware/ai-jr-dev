@@ -45,12 +45,35 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       // Generate prompt using the payload directly
       const prompt = generateIssuePrompt(payload);
 
-      const result = await runCloudRunJob(octokit, {
+      const jobParams = {
         installationId: payload.installation.id,
         prompt: prompt,
         cloneUrlWithoutToken: payload.repository.clone_url,
         branchName: branchName,
+      };
+
+      let result = await runCloudRunJob(octokit, jobParams);
+
+      // Check if the job made any commits
+      const changed = await githubClient.hasBranchChanged({
+        octokit,
+        repository: payload.repository,
+        branchName: branchName,
       });
+
+      if (!changed) {
+        // If no changes, run the job again
+        // TODO: Consider adding logic here to modify the prompt for the second run,
+        // e.g., asking the AI why it didn't make changes or providing more context.
+        result = await runCloudRunJob(octokit, jobParams);
+
+        // Optional: Check again after the second run, though we proceed to PR creation regardless
+        const changedAfterSecondRun = await githubClient.hasBranchChanged({
+          octokit,
+          repository: payload.repository,
+          branchName: branchName,
+        });
+      }
 
       // decide if the job did what it was meant to.
       // if there's no commit, see if it's asked for any files

@@ -24,6 +24,46 @@ export async function createWorkingComment(
 }
 
 /**
+ * Checks if the target branch has a different SHA than the default branch.
+ * Returns true if the SHAs are different (branch has changed), false otherwise.
+ */
+interface HasBranchChangedParams {
+  octokit: Octokit;
+  repository: IssuesLabeledPayload["repository"]; // Use the repository type from the payload
+  branchName: string;
+}
+export async function hasBranchChanged({
+  octokit,
+  repository,
+  branchName,
+}: HasBranchChangedParams): Promise<boolean> {
+  const owner = repository.owner.login;
+  const repo = repository.name;
+  const defaultBranchName = repository.default_branch;
+
+  try {
+    const [branchData, defaultBranchData] = await Promise.all([
+      octokit.rest.repos.getBranch({ owner, repo, branch: branchName }),
+      octokit.rest.repos.getBranch({ owner, repo, branch: defaultBranchName }),
+    ]);
+
+    const branchSha = branchData.data.commit.sha;
+    const defaultBranchSha = defaultBranchData.data.commit.sha;
+
+    return branchSha !== defaultBranchSha;
+  } catch (error) {
+    console.error(
+      `Error comparing branches ${branchName} and ${defaultBranchName}:`,
+      error
+    );
+    // If we can't compare, assume no change or handle error as needed.
+    // Returning false might prevent unnecessary PRs if something is wrong.
+    return false;
+  }
+}
+
+
+/**
  * Fetches or creates a branch based on the issue details.
  * Returns the branch name.
  */
