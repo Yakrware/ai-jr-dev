@@ -50,10 +50,6 @@ export async function hasBranchChanged({
     const branchSha = branchData.data.commit.sha;
     const defaultBranchSha = defaultBranchData.data.commit.sha;
 
-    console.log(
-      `Comparing SHAs: ${branchName} (${branchSha}) vs ${defaultBranchName} (${defaultBranchSha})`
-    );
-
     return branchSha !== defaultBranchSha;
   } catch (error) {
     console.error(

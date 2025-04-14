@@ -62,7 +62,6 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       });
 
       if (!changed) {
-        console.log(`No changes detected on branch ${branchName} after first job run. Running again.`);
         // If no changes, run the job again
         // TODO: Consider adding logic here to modify the prompt for the second run,
         // e.g., asking the AI why it didn't make changes or providing more context.
@@ -74,9 +73,8 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
           repository: payload.repository,
           branchName: branchName,
         });
-        console.log(`Changes detected after second run: ${changedAfterSecondRun}`);
+        // console.log(`Changes detected after second run: ${changedAfterSecondRun}`); // Optional: Keep for debugging if needed
       }
-
 
       // decide if the job did what it was meant to.
       // if there's no commit, see if it's asked for any files
