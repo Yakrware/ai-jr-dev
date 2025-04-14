@@ -57,10 +57,8 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       // Check if the job made any commits
       const changed = await githubClient.hasBranchChanged({
         octokit,
-        owner: payload.repository.owner.login,
-        repo: payload.repository.name,
+        repository: payload.repository,
         branchName: branchName,
-        defaultBranchName: payload.repository.default_branch,
       });
 
       if (!changed) {
@@ -73,10 +71,8 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
         // Optional: Check again after the second run, though we proceed to PR creation regardless
         const changedAfterSecondRun = await githubClient.hasBranchChanged({
           octokit,
-          owner: payload.repository.owner.login,
-          repo: payload.repository.name,
+          repository: payload.repository,
           branchName: branchName,
-          defaultBranchName: payload.repository.default_branch,
         });
         console.log(`Changes detected after second run: ${changedAfterSecondRun}`);
       }

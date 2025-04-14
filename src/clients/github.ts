@@ -29,18 +29,18 @@ export async function createWorkingComment(
  */
 interface HasBranchChangedParams {
   octokit: Octokit;
-  owner: string;
-  repo: string;
+  repository: IssuesLabeledPayload["repository"]; // Use the repository type from the payload
   branchName: string;
-  defaultBranchName: string;
 }
 export async function hasBranchChanged({
   octokit,
-  owner,
-  repo,
+  repository,
   branchName,
-  defaultBranchName,
 }: HasBranchChangedParams): Promise<boolean> {
+  const owner = repository.owner.login;
+  const repo = repository.name;
+  const defaultBranchName = repository.default_branch;
+
   try {
     const [branchData, defaultBranchData] = await Promise.all([
       octokit.rest.repos.getBranch({ owner, repo, branch: branchName }),
@@ -50,11 +50,16 @@ export async function hasBranchChanged({
     const branchSha = branchData.data.commit.sha;
     const defaultBranchSha = defaultBranchData.data.commit.sha;
 
-    console.log(`Comparing SHAs: ${branchName} (${branchSha}) vs ${defaultBranchName} (${defaultBranchSha})`);
+    console.log(
+      `Comparing SHAs: ${branchName} (${branchSha}) vs ${defaultBranchName} (${defaultBranchSha})`
+    );
 
     return branchSha !== defaultBranchSha;
   } catch (error) {
-    console.error(`Error comparing branches ${branchName} and ${defaultBranchName}:`, error);
+    console.error(
+      `Error comparing branches ${branchName} and ${defaultBranchName}:`,
+      error
+    );
     // If we can't compare, assume no change or handle error as needed.
     // Returning false might prevent unnecessary PRs if something is wrong.
     return false;
