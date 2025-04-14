@@ -76,7 +76,7 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
             )}. Re-running job with file list.`
           );
           // Update job params with files for the second run
-          const secondRunParams = { ...jobParams, files: files };
+          const secondRunParams = { ...jobParams, files };
           result = await runCloudRunJob(octokit, secondRunParams);
         } else {
           // If no specific files identified, run the job again with original params
