@@ -73,7 +73,6 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
           repository: payload.repository,
           branchName: branchName,
         });
-        // console.log(`Changes detected after second run: ${changedAfterSecondRun}`); // Optional: Keep for debugging if needed
       }
 
       // decide if the job did what it was meant to.
