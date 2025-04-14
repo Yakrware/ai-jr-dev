@@ -1,14 +1,28 @@
 import { Octokit } from "octokit";
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 import { kebabCase } from "../utilities.js"; // Assuming kebabCase is used internally
-import {
+
+// --- Mocks ---
+
+// Mock openai module
+const mockPrDescription = "Mocked AI-generated PR description.";
+jest.unstable_mockModule("./openai.js", () => ({
+  __esModule: true,
+  generatePrDescription: jest.fn().mockResolvedValue(mockPrDescription),
+  // Mock other exports from openai.js if they are used elsewhere in the test file
+  // identifyMissingFiles: jest.fn().mockResolvedValue([]),
+}));
+
+// Import AFTER mocks are set up
+const { generatePrDescription } = await import("./openai.js");
+const {
   createWorkingComment,
   fetchBranch,
   createPullRequest,
   createPrLinkedComment,
   handleIssueError,
   resetReviewRequest,
-} from "./github.js";
+} = await import("./github.js");
 
 // --- Type Definitions ---
 type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">;
@@ -214,6 +228,7 @@ describe("GitHub Client Functions", () => {
 
   describe("createPullRequest", () => {
     const branchName = "ai-jr-dev/1-test-issue";
+    const jobOutput = "This is the log output from the Cloud Run job."; // Define jobOutput
     const mockPrResponse = {
       data: {
         html_url: "http://example.com/pull/5",
@@ -223,6 +238,8 @@ describe("GitHub Client Functions", () => {
     };
 
     beforeEach(() => {
+      // Clear the mock function's call history before each test
+      (generatePrDescription as jest.Mock).mockClear();
       // Mock the pulls.create call
       (mockOctokit.rest.pulls.create as unknown as jest.Mock).mockResolvedValue(
         mockPrResponse
@@ -237,13 +254,15 @@ describe("GitHub Client Functions", () => {
       await createPullRequest(
         mockOctokit,
         mockIssueLabeledPayloadBase,
-        branchName
+        branchName,
+        jobOutput // Pass jobOutput
       );
       expect(mockOctokit.rest.pulls.create).toHaveBeenCalledTimes(1);
       expect(mockOctokit.rest.pulls.create).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
         title: "[AI] Test Issue",
+        body: mockPrDescription, // Expect the mocked description
         head: branchName,
         base: "main",
       });
@@ -253,7 +272,8 @@ describe("GitHub Client Functions", () => {
       await createPullRequest(
         mockOctokit,
         mockIssueLabeledPayloadBase,
-        branchName
+        branchName,
+        jobOutput // Pass jobOutput
       );
       // createPrLinkedComment calls issues.createComment
       expect(mockOctokit.rest.issues.createComment).toHaveBeenCalledTimes(1);
@@ -269,7 +289,8 @@ describe("GitHub Client Functions", () => {
       const result = await createPullRequest(
         mockOctokit,
         mockIssueLabeledPayloadBase,
-        branchName
+        branchName,
+        jobOutput // Pass jobOutput
       );
       expect(result).toEqual(mockPrResponse);
     });
