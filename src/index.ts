@@ -123,11 +123,22 @@ octoApp.webhooks.on(
           return;
         }
 
+        // Fetch files changed in the pull request
+        const { data: prFiles } = await octokit.rest.pulls.listFiles({
+          owner: payload.repository.owner.login,
+          repo: payload.repository.name,
+          pull_number: payload.pull_request.number,
+        });
+
+        // Extract filenames
+        const files = prFiles.map((file) => file.filename);
+
         const result = await runCloudRunJob(octokit, {
           installationId: payload.installation.id,
           prompt: prompt,
           cloneUrlWithoutToken: payload.repository.clone_url,
           branchName: payload.pull_request.head.ref,
+          files, // Pass the list of changed files
         });
 
         // TODO: use image output to make any comments, such as commands that the AI needs the user's help running
