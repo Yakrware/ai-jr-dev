@@ -63,9 +63,6 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       });
 
       if (!changed) {
-        console.log(
-          `Job for issue ${payload.issue.number} did not result in changes. Analyzing for missing files.`
-        );
         // Analyze the first run's output to see if files were missing
         const files = await identifyMissingFiles(prompt, result);
 
