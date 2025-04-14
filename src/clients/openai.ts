@@ -19,8 +19,8 @@ const MODEL_NAME = "google/gemini-2.0-flash-001"; // Updated model name based on
 export async function extractSessionCost(jobOutput: string): Promise<number> {
   try {
     // Regex to find the LAST occurrence of the specific cost format
-    // Looks for "Cost: /entrypoint.sh.XXXX message, /entrypoint.sh.YY session."
-    // Captures the session cost (YY)
+    // Looks for "Cost: /entrypoint.sh.X message, /entrypoint.sh.Y session."
+    // Captures the session cost (Y)
     const costPattern = /Cost: \/entrypoint\.sh\.(\d+(?:\.\d+)?) message, \/entrypoint\.sh\.(\d+(?:\.\d+)?) session\./g;
     let lastMatch: RegExpExecArray | null = null;
     let currentMatch: RegExpExecArray | null;
@@ -41,7 +41,7 @@ export async function extractSessionCost(jobOutput: string): Promise<number> {
       messages: [
         {
           role: "system",
-          content: `You are a cost extraction assistant. Extract ONLY the numeric session cost from the LAST occurrence of a line matching the format "Cost: /entrypoint.sh.X message, /entrypoint.sh.Y session." in the provided log.
+          content: `You are a cost extraction assistant. Extract ONLY the numeric session cost (the second number) from the LAST occurrence of a line matching the format "Cost: /entrypoint.sh.X message, /entrypoint.sh.Y session." in the provided log.
           For example, if the log contains:
           "Cost: /entrypoint.sh.0.0085 message, /entrypoint.sh.0.01 session."
           "Cost: /entrypoint.sh.0.0090 message, /entrypoint.sh.0.02 session."

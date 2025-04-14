@@ -45,7 +45,7 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
         octokit,
         payload,
         installationId,
-        ownerLogin
+        payload.repository.owner.login
       );
 
       if (!quotaCheckPassed) {
