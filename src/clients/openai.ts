@@ -40,6 +40,7 @@ export async function identifyMissingFiles(
     });
 
     const content = completion.choices[0]?.message?.content;
+    console.log(`File Search Content: ${content}`);
     if (!content) {
       return [];
     }
