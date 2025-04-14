@@ -81,8 +81,8 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       // try again with missing files
 
       // create a pull request summary
+      // parse out price total
       await githubClient.createPullRequest(octokit, payload, branchName);
-      // save PR and cost on installation
     } catch (e: any) {
       // Use the centralized error handler
       await githubClient.handleIssueError(octokit, payload, e);
