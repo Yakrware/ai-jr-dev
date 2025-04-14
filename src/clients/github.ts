@@ -9,6 +9,24 @@ type PullRequestReviewSubmittedPayload =
   WebhookEventDefinition<"pull-request-review-submitted">;
 type PullRequestClosedPayload = WebhookEventDefinition<"pull-request-closed">;
 
+// Subscription interface
+export interface Subscription {
+  isActive: boolean;
+  monthlyPrLimit: number;
+  renewalDate: string; // ISO date string
+}
+
+// Default subscription values
+const DEFAULT_SUBSCRIPTION: Subscription = {
+  isActive: true,
+  monthlyPrLimit: 5, // Default limit for free tier
+  renewalDate: new Date(
+    new Date().getFullYear(),
+    new Date().getMonth() + 1,
+    1
+  ).toISOString(), // First day of next month
+};
+
 /**
  * Creates an initial "I'm on it!" comment on an issue.
  */
@@ -132,6 +150,79 @@ export async function createPullRequest(
   await createPrLinkedComment(octokit, payload, prResponse.data.html_url);
 
   return prResponse; // Return the full response object
+}
+
+/**
+ * Retrieves subscription details for a GitHub account.
+ * This would typically query a database or external service.
+ * For now, it returns default values.
+ */
+export async function getSubscriptionDetails(
+  octokit: Octokit,
+  accountName: string
+): Promise<Subscription> {
+  try {
+    // TODO: Replace with actual database/API call to get subscription details
+    // This is a placeholder implementation
+    
+    // For demonstration, we'll check if the account is a sponsor
+    // This could be replaced with your actual subscription logic
+    try {
+      const sponsorshipResponse = await octokit.rest.sponsors.getForAuthenticatedUser({
+        username: accountName
+      });
+      
+      // If we get here, they're a sponsor - give them a higher limit
+      if (sponsorshipResponse.status === 200) {
+        return {
+          isActive: true,
+          monthlyPrLimit: 20, // Higher limit for sponsors
+          renewalDate: DEFAULT_SUBSCRIPTION.renewalDate,
+        };
+      }
+    } catch (error) {
+      // Not a sponsor, continue with default handling
+      console.log(`${accountName} is not a sponsor, using default subscription.`);
+    }
+    
+    // Return default subscription for now
+    return DEFAULT_SUBSCRIPTION;
+  } catch (error) {
+    console.error(`Error retrieving subscription for ${accountName}:`, error);
+    return DEFAULT_SUBSCRIPTION; // Fallback to default on error
+  }
+}
+
+/**
+ * Creates a comment on the issue explaining that the quota has been exceeded.
+ */
+export async function createQuotaExceededComment(
+  octokit: Octokit,
+  payload: IssuesLabeledPayload,
+  renewalDate: string
+): Promise<void> {
+  const formattedDate = new Date(renewalDate).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+  
+  await octokit.rest.issues.createComment({
+    owner: payload.repository.owner.login,
+    repo: payload.repository.name,
+    issue_number: payload.issue.number,
+    body: `⚠️ **Monthly AI PR Quota Exceeded**\n\nI'm sorry, but you've reached your monthly limit for AI-generated pull requests. Your quota will reset on ${formattedDate}.\n\nPlease try again after that date, or consider upgrading your subscription for a higher limit.`,
+  });
+  
+  // Remove the AI label to indicate we're not processing this
+  if (payload.label?.name) {
+    await octokit.rest.issues.removeLabel({
+      owner: payload.repository.owner.login,
+      repo: payload.repository.name,
+      issue_number: payload.issue.number,
+      name: payload.label.name,
+    });
+  }
 }
 
 /**

@@ -11,6 +11,62 @@ const openAIClient = new OpenAI({
 const MODEL_NAME = "google/gemini-2.0-flash-001"; // Updated model name based on availability
 
 /**
+ * Extracts the cost information from the job output log.
+ * 
+ * @param jobOutput The output/logs from the job run.
+ * @returns A promise resolving to the extracted cost as a number.
+ */
+export async function extractSessionCost(jobOutput: string): Promise<number> {
+  try {
+    // First try to extract cost using regex patterns
+    const costPatterns = [
+      /Total cost: \$([0-9.]+)/i,
+      /Cost: \$([0-9.]+)/i,
+      /\$([0-9.]+) total cost/i,
+      /Session cost: \$([0-9.]+)/i
+    ];
+    
+    for (const pattern of costPatterns) {
+      const match = jobOutput.match(pattern);
+      if (match && match[1]) {
+        return parseFloat(match[1]);
+      }
+    }
+    
+    // If regex fails, use AI to extract the cost
+    const completion = await openAIClient.chat.completions.create({
+      model: MODEL_NAME,
+      messages: [
+        {
+          role: "system",
+          content: `You are a cost extraction assistant. Extract ONLY the dollar cost from the job output log. 
+          Look for patterns like "Total cost: $X.XX", "Cost: $X.XX", "$X.XX total cost", etc. 
+          Return ONLY the numeric value (e.g., "0.12" not "$0.12"). If no cost is found, return "0".`
+        },
+        {
+          role: "user",
+          content: `Job Output Log:\n---\n${jobOutput}\n---`
+        }
+      ],
+      temperature: 0.1, // Low temperature for factual extraction
+      max_tokens: 10 // Very short response needed
+    });
+
+    const content = completion.choices[0]?.message?.content?.trim();
+    if (!content) {
+      return 0;
+    }
+    
+    // Parse the extracted cost as a float
+    const extractedCost = parseFloat(content);
+    return isNaN(extractedCost) ? 0 : extractedCost;
+  } catch (error) {
+    console.error("Error extracting session cost:", error);
+    return 0; // Default to zero on error
+  }
+}
+
+/**
  * Analyzes the initial prompt and the output of a failed job run
  * to identify file paths that were requested but potentially missing.
  *
