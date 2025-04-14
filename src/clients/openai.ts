@@ -22,13 +22,6 @@ export async function identifyMissingFiles(
   initialPrompt: string,
   jobOutput: string
 ): Promise<string[]> {
-  if (!process.env.OPENROUTER_API_KEY) {
-    console.warn(
-      "OPENROUTER_API_KEY not set. Skipping missing file identification."
-    );
-    return [];
-  }
-
   try {
     const completion = await openAIClient.chat.completions.create({
       model: MODEL_NAME,

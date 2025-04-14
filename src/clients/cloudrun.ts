@@ -13,7 +13,7 @@ export interface RunJobParams {
   prompt: string;
   cloneUrlWithoutToken: string;
   branchName: string;
-  files?: string[]; // Optional list of files
+  files?: string[]; // Optional list of files to include
 }
 
 /**
@@ -29,7 +29,7 @@ export async function runCloudRunJob(
     prompt,
     cloneUrlWithoutToken,
     branchName,
-    missingFiles, // Destructure the new parameter
+    files, // Destructure the files parameter
   }: RunJobParams
 ): Promise<string> {
   const jobsClient = new JobsClient();
@@ -60,11 +60,12 @@ export async function runCloudRunJob(
       ],
     };
 
-    // Add MISSING_FILES env var if provided
-    if (missingFiles && missingFiles.length > 0) {
+    // Add FILES env var if provided, formatted for aider
+    if (files && files.length > 0) {
+      const filesArg = files.map((f) => `--file ${f}`).join(" ");
       overrides.containerOverrides![0].env!.push({
-        name: "MISSING_FILES",
-        value: missingFiles.join(","), // Pass as comma-separated string
+        name: "FILES",
+        value: filesArg,
       });
     }
 
