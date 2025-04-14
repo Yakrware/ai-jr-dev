@@ -82,7 +82,6 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
 
       // create a pull request summary
       await githubClient.createPullRequest(octokit, payload, branchName);
-      // parse out price total
       // save PR and cost on installation
     } catch (e: any) {
       // Use the centralized error handler
