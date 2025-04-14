@@ -3,8 +3,9 @@ import { createNodeMiddleware } from "@octokit/webhooks";
 import { runCloudRunJob } from "./clients/cloudrun.js";
 import dotenv from "dotenv";
 import { generateIssuePrompt, generateReviewPrompt } from "./lib/prompt.js";
-import * as githubClient from "./clients/github.js"; // Import the new GitHub client
+import * as githubClient from "./clients/github.js";
 import { getEnterpriseClient } from "./clients/mongodb.js";
+import { identifyMissingFiles } from "./clients/openai.js"; // Import the new OpenAI client function
 
 dotenv.config();
 
@@ -62,12 +63,20 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       });
 
       if (!changed) {
-        // If no changes, run the job again
-        // TODO: Consider adding logic here to modify the prompt for the second run,
-        // e.g., asking the AI why it didn't make changes or providing more context.
-        result = await runCloudRunJob(octokit, jobParams);
+        // Analyze the first run's output to see if files were missing
+        const files = await identifyMissingFiles(prompt, result);
 
-        // Optional: Check again after the second run, though we proceed to PR creation regardless
+        if (files.length > 0) {
+          // Update job params with files for the second run
+          const secondRunParams = { ...jobParams, files };
+          result = await runCloudRunJob(octokit, secondRunParams);
+        } else {
+          // If no specific files identified, run the job again with original params
+          // Consider if a modified prompt is needed here instead/as well.
+          result = await runCloudRunJob(octokit, jobParams);
+        }
+
+        // Optional: Check again after the second run
         const changedAfterSecondRun = await githubClient.hasBranchChanged({
           octokit,
           repository: payload.repository,

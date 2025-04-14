@@ -13,18 +13,25 @@ export interface RunJobParams {
   prompt: string;
   cloneUrlWithoutToken: string;
   branchName: string;
+  files?: string[]; // Optional list of files to include
 }
 
 /**
  * Runs a Google Cloud Run job with specific parameters for the AI dev task.
  * @param octokit - An authenticated Octokit instance for the installation.
  * @param params - The parameters for running the job. Destructured for easier access.
- * @returns A promise resolving to the operation result.
+ * @returns A promise resolving to the combined text payload from the job logs.
  */
 export async function runCloudRunJob(
   octokit: Octokit,
-  { installationId, prompt, cloneUrlWithoutToken, branchName }: RunJobParams
-): Promise<any> {
+  {
+    installationId,
+    prompt,
+    cloneUrlWithoutToken,
+    branchName,
+    files, // Destructure the files parameter
+  }: RunJobParams
+): Promise<string> {
   const jobsClient = new JobsClient();
   try {
     const tokenResponse = await octokit.rest.apps.createInstallationAccessToken(
@@ -52,6 +59,15 @@ export async function runCloudRunJob(
         },
       ],
     };
+
+    // Add FILES env var if provided, formatted for aider
+    if (files && files.length > 0) {
+      const filesArg = files.map((f) => `--file ${f}`).join(" ");
+      overrides.containerOverrides![0].env!.push({
+        name: "FILES",
+        value: filesArg,
+      });
+    }
 
     const [operation] = await jobsClient.runJob({
       name: FULL_JOB_NAME,
