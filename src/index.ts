@@ -75,13 +75,10 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
               ", "
             )}. Re-running job with file list.`
           );
-          // Update job params with missing files for the second run
-          const secondRunParams = { ...jobParams, missingFiles };
+          // Update job params with files for the second run
+          const secondRunParams = { ...jobParams, files: missingFiles }; // Use 'files' key
           result = await runCloudRunJob(octokit, secondRunParams);
         } else {
-          console.log(
-            "No specific missing files identified. Re-running job without changes to parameters."
-          );
           // If no specific files identified, run the job again with original params
           // Consider if a modified prompt is needed here instead/as well.
           result = await runCloudRunJob(octokit, jobParams);

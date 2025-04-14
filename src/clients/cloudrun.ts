@@ -13,7 +13,7 @@ export interface RunJobParams {
   prompt: string;
   cloneUrlWithoutToken: string;
   branchName: string;
-  missingFiles?: string[]; // Optional list of missing files
+  files?: string[]; // Optional list of files
 }
 
 /**
