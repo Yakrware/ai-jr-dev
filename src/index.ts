@@ -96,23 +96,6 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
     }
   }
 });
-        branchName: branchName,
-      });
-
-      // decide if the job did what it was meant to.
-      // if there's no commit, see if it's asked for any files
-      // try again with missing files
-
-      // create a pull request summary
-      await githubClient.createPullRequest(octokit, payload, branchName);
-      // parse out price total
-      // save PR and cost on installation
-    } catch (e: any) {
-      // Use the centralized error handler
-      await githubClient.handleIssueError(octokit, payload, e);
-    }
-  }
-});
 
 octoApp.webhooks.on(
   "pull_request_review.submitted",
