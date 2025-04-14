@@ -131,14 +131,14 @@ octoApp.webhooks.on(
         });
 
         // Extract filenames
-        const changedFiles = prFiles.map((file) => file.filename);
+        const files = prFiles.map((file) => file.filename);
 
         const result = await runCloudRunJob(octokit, {
           installationId: payload.installation.id,
           prompt: prompt,
           cloneUrlWithoutToken: payload.repository.clone_url,
           branchName: payload.pull_request.head.ref,
-          files: changedFiles, // Pass the list of changed files
+          files, // Pass the list of changed files
         });
 
         // TODO: use image output to make any comments, such as commands that the AI needs the user's help running
