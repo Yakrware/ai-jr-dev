@@ -45,10 +45,57 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       // Generate prompt using the payload directly
       const prompt = generateIssuePrompt(payload);
 
-      const result = await runCloudRunJob(octokit, {
+      const jobParams = {
         installationId: payload.installation.id,
         prompt: prompt,
         cloneUrlWithoutToken: payload.repository.clone_url,
+        branchName: branchName,
+      };
+
+      let result = await runCloudRunJob(octokit, jobParams);
+
+      // Check if the job made any commits
+      const changed = await githubClient.hasBranchChanged(
+        octokit,
+        payload.repository.owner.login,
+        payload.repository.name,
+        branchName,
+        payload.repository.default_branch
+      );
+
+      if (!changed) {
+        console.log(`No changes detected on branch ${branchName} after first job run. Running again.`);
+        // If no changes, run the job again
+        // TODO: Consider adding logic here to modify the prompt for the second run,
+        // e.g., asking the AI why it didn't make changes or providing more context.
+        result = await runCloudRunJob(octokit, jobParams);
+
+        // Optional: Check again after the second run, though we proceed to PR creation regardless
+        const changedAfterSecondRun = await githubClient.hasBranchChanged(
+          octokit,
+          payload.repository.owner.login,
+          payload.repository.name,
+          branchName,
+          payload.repository.default_branch
+        );
+        console.log(`Changes detected after second run: ${changedAfterSecondRun}`);
+      }
+
+
+      // decide if the job did what it was meant to.
+      // if there's no commit, see if it's asked for any files
+      // try again with missing files
+
+      // create a pull request summary
+      await githubClient.createPullRequest(octokit, payload, branchName);
+      // parse out price total
+      // save PR and cost on installation
+    } catch (e: any) {
+      // Use the centralized error handler
+      await githubClient.handleIssueError(octokit, payload, e);
+    }
+  }
+});
         branchName: branchName,
       });
 
