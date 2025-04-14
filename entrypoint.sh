@@ -22,7 +22,7 @@ EDITOR_MODEL="${EDITOR_MODEL:-$MODEL}"
 WEAK_MODEL="${WEAK_MODEL:-$MODEL}"
 
 # Run aider command with specified models
-eval "aider --no-show-model-warnings --no-check-update --yes-always --model $MODEL --message \"${PROMPT}\""
+eval "aider --architect --no-show-model-warnings --no-check-update --yes-always --model $MODEL ${FILES} --message \"${PROMPT}\""
 
 # Push changes
 git push origin $BRANCH_NAME
