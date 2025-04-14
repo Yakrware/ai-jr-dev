@@ -67,11 +67,6 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
         const files = await identifyMissingFiles(prompt, result);
 
         if (files.length > 0) {
-          console.log(
-            `Identified potentially missing files: ${files.join(
-              ", "
-            )}. Re-running job with file list.`
-          );
           // Update job params with files for the second run
           const secondRunParams = { ...jobParams, files };
           result = await runCloudRunJob(octokit, secondRunParams);
