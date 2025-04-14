@@ -49,7 +49,10 @@ export async function runCloudRunJob(
       containerOverrides: [
         {
           env: [
-            { name: "PROMPT", value: prompt.replace('"', `\"`) },
+            {
+              name: "PROMPT",
+              value: prompt.replace('"', `\"`).replace("$", `\$`),
+            },
             {
               name: "REPO_NAME",
               value: cloneUrlWithToken,
