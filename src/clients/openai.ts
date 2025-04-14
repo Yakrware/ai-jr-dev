@@ -8,7 +8,7 @@ const openAIClient = new OpenAI({
   apiKey: process.env.OPENROUTER_API_KEY,
 });
 
-const MODEL_NAME = "openrouter/google/gemini-2.0-flash-001"; // Updated model name based on availability
+const MODEL_NAME = "google/gemini-2.0-flash-001"; // Updated model name based on availability
 
 /**
  * Analyzes the initial prompt and the output of a failed job run
