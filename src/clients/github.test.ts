@@ -6,6 +6,7 @@ import { kebabCase } from "../utilities.js"; // Assuming kebabCase is used inter
 
 // Mock openai module
 const mockPrDescription = "Mocked AI-generated PR description.";
+// @ts-ignore
 jest.unstable_mockModule("./openai.js", () => ({
   __esModule: true,
   generatePrDescription: jest.fn().mockResolvedValue(mockPrDescription),
