@@ -27,13 +27,20 @@ export async function createWorkingComment(
  * Checks if the target branch has a different SHA than the default branch.
  * Returns true if the SHAs are different (branch has changed), false otherwise.
  */
-export async function hasBranchChanged(
-  octokit: Octokit,
-  owner: string,
-  repo: string,
-  branchName: string,
-  defaultBranchName: string
-): Promise<boolean> {
+interface HasBranchChangedParams {
+  octokit: Octokit;
+  owner: string;
+  repo: string;
+  branchName: string;
+  defaultBranchName: string;
+}
+export async function hasBranchChanged({
+  octokit,
+  owner,
+  repo,
+  branchName,
+  defaultBranchName,
+}: HasBranchChangedParams): Promise<boolean> {
   try {
     const [branchData, defaultBranchData] = await Promise.all([
       octokit.rest.repos.getBranch({ owner, repo, branch: branchName }),
