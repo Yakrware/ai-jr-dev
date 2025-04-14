@@ -125,6 +125,35 @@ describe("runCloudRunJob", () => {
     });
   });
 
+  it("should call jobsClient.runJob with escaped prompt", async () => {
+    await runCloudRunJob(mockOctokit, {
+      ...mockParams,
+      prompt: `"this" should be escaped so we can't escape`,
+    });
+
+    const expectedCloneUrlWithToken = `https://x-access-token:mock_access_token@github.com/test-owner/test-repo.git`;
+    const expectedOverrides = {
+      containerOverrides: [
+        {
+          env: [
+            {
+              name: "PROMPT",
+              value: `\"this\" should be escaped so we can't escape`,
+            },
+            { name: "REPO_NAME", value: expectedCloneUrlWithToken },
+            { name: "BRANCH_NAME", value: mockParams.branchName },
+          ],
+        },
+      ],
+    };
+
+    expect(mockJobsClientInstance.runJob).toHaveBeenCalledTimes(1);
+    expect(mockJobsClientInstance.runJob).toHaveBeenCalledWith({
+      name: EXPECTED_FULL_JOB_NAME,
+      overrides: expectedOverrides,
+    });
+  });
+
   it("should return the result of operation.promise()", async () => {
     const result = await runCloudRunJob(mockOctokit, mockParams);
     expect(mockRunJobPromise).toHaveBeenCalledTimes(1);
