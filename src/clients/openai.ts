@@ -70,7 +70,7 @@ export async function generatePrDescription(jobOutput: string): Promise<string> 
       messages: [
         {
           role: "system",
-          content: `You are an expert technical writer. Analyze the following job output log which contains details of code changes made by an AI assistant. Generate a concise summary (2-4 sentences) of the changes made, suitable for a pull request description. Use simple, layman's terms. Do NOT include any code snippets, file paths, or overly technical jargon. Focus on *what* was changed and *why* based on the log. If the log indicates no changes were made or is unclear, state that clearly.`,
+          content: `You are an expert technical writer. Analyze the following job output log which contains details of code changes made by an AI assistant. Generate a summary of the changes made, suitable for a pull request description. Use simple, layman's terms. Do NOT include any code snippets, file paths, or overly technical jargon. Focus on *what* was changed and *why* based on the log. If the log indicates no changes were made or is unclear, state that clearly.`,
         },
         {
           role: "user",
@@ -78,7 +78,7 @@ export async function generatePrDescription(jobOutput: string): Promise<string> 
         },
       ],
       temperature: 0.5, // Moderate temperature for creative summarization
-      max_tokens: 150, // Allow slightly longer description
+      max_tokens: 300, // Allow longer description
     });
 
     const content = completion.choices[0]?.message?.content?.trim();
