@@ -41,41 +41,19 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       console.log(`Processing issue #${issueNumber} in ${repoFullName} for label "${payload.label.name}"`);
 
       // --- Quota Check ---
-      const enterprise = await getEnterpriseClient(
-        [payload.issue.user?.login, payload.organization?.login].filter(
-          isString
-        )
+      const quotaCheckPassed = await githubClient.checkQuotaAndNotify(
+        octokit,
+        payload,
+        installationId,
+        ownerLogin
       );
-      if (!enterprise) {
-        console.log(`Account ${owner.login} is not an enterprise client. Checking usage quota.`);
 
-        const subscription = await githubClient.getSubscriptionDetails(octokit, owner.login);
-
-        if (!subscription.isActive) {
-          console.warn(`Subscription for ${owner.login} is not active. Applying default limit of ${subscription.monthlyPrLimit}.`);
-          // Optionally block inactive subscriptions here if desired
-        }
-
-        const renewalDate = new Date(subscription.renewalDate);
-        const cycleStartDate = new Date(renewalDate);
-        cycleStartDate.setMonth(cycleStartDate.getMonth() - 1); // Calculate start of current cycle
-
-        const usageData = await getInstallationUsage(installationId);
-        const prsThisCycle = usageData?.pull_requests.filter(pr => new Date(pr.created_at) >= cycleStartDate) ?? [];
-        const currentPrCount = prsThisCycle.length;
-
-        console.log(`Quota check for ${owner.login}: Limit=${subscription.monthlyPrLimit}, Used=${currentPrCount}, CycleStart=${cycleStartDate.toISOString()}`);
-
-        if (currentPrCount >= subscription.monthlyPrLimit) {
-          console.warn(`Quota exceeded for ${owner.login} (Installation ID: ${installationId}). Limit: ${subscription.monthlyPrLimit}, Used: ${currentPrCount}.`);
-          await githubClient.createQuotaExceededComment(octokit, payload, subscription.renewalDate);
-          return; // Stop processing
-        }
-        console.log(`Quota check passed for ${owner.login}.`);
+      if (!quotaCheckPassed) {
+        return; // Stop processing if quota exceeded or error occurred during check
       }
+      // --- End Quota Check ---
 
       await githubClient.createWorkingComment(octokit, payload);
-      // --- End Quota Check ---
 
       const branchName = await githubClient.fetchBranch(octokit, payload);
 

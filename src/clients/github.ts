@@ -19,7 +19,7 @@ export interface Subscription {
 // Default subscription values
 const DEFAULT_SUBSCRIPTION: Subscription = {
   isActive: true,
-  monthlyPrLimit: 5, // Default limit for free tier
+  monthlyPrLimit: 0, // Default limit is 0 for free tier
   renewalDate: new Date(
     new Date().getFullYear(),
     new Date().getMonth() + 1,
@@ -162,35 +162,96 @@ export async function getSubscriptionDetails(
   accountName: string
 ): Promise<Subscription> {
   try {
-    // TODO: Replace with actual database/API call to get subscription details
-    // This is a placeholder implementation
-    
-    // For demonstration, we'll check if the account is a sponsor
-    // This could be replaced with your actual subscription logic
-    try {
-      const sponsorshipResponse = await octokit.rest.sponsors.getForAuthenticatedUser({
-        username: accountName
-      });
-      
-      // If we get here, they're a sponsor - give them a higher limit
-      if (sponsorshipResponse.status === 200) {
-        return {
-          isActive: true,
-          monthlyPrLimit: 20, // Higher limit for sponsors
-          renewalDate: DEFAULT_SUBSCRIPTION.renewalDate,
-        };
+    // Use apps.getSubscriptionPlanForAccount
+    const response = await octokit.rest.apps.getSubscriptionPlanForAccount({
+      account_id: (await octokit.rest.users.getByUsername({ username: accountName })).data.id,
+    });
+
+    const plan = response.data.marketplace_purchase?.plan;
+
+    if (plan) {
+      // Map plan details to Subscription interface
+      let limit = DEFAULT_SUBSCRIPTION.monthlyPrLimit; // Start with default
+      if (plan.bullets) {
+         // Example: Look for a bullet like "Up to 20 PRs per month"
+         const limitBullet = plan.bullets.find(b => b?.toLowerCase().includes('prs per month'));
+         if (limitBullet) {
+           const match = limitBullet.match(/(\d+)\s+prs/i);
+           if (match && match[1]) {
+             limit = parseInt(match[1], 10);
+           }
+         }
       }
-    } catch (error) {
-      // Not a sponsor, continue with default handling
-      console.log(`${accountName} is not a sponsor, using default subscription.`);
+
+      return {
+        isActive: response.data.marketplace_purchase?.on_free_trial || (plan.monthly_price_in_cents ?? 0) > 0,
+        monthlyPrLimit: limit,
+        renewalDate: response.data.marketplace_purchase?.next_billing_date ?? DEFAULT_SUBSCRIPTION.renewalDate,
+      };
+    } else {
+      // No active plan found, return default
+      console.log(`No active marketplace subscription found for ${accountName}. Using default.`);
+      return DEFAULT_SUBSCRIPTION;
     }
-    
-    // Return default subscription for now
-    return DEFAULT_SUBSCRIPTION;
-  } catch (error) {
-    console.error(`Error retrieving subscription for ${accountName}:`, error);
-    return DEFAULT_SUBSCRIPTION; // Fallback to default on error
+
+  } catch (error: any) {
+    // Handle cases where the account doesn't exist or has no plan (e.g., 404)
+    if (error.status === 404) {
+      console.log(`No marketplace subscription found for account ${accountName}. Using default.`);
+    } else {
+      console.error(`Error retrieving subscription for ${accountName}:`, error);
+    }
+    return DEFAULT_SUBSCRIPTION; // Fallback to default on error or no plan
   }
+}
+
+/**
+ * Checks if the account has exceeded their monthly PR quota and notifies if necessary.
+ * Returns true if the quota check passes, false otherwise.
+ */
+export async function checkQuotaAndNotify(
+  octokit: Octokit,
+  payload: IssuesLabeledPayload,
+  installationId: number,
+  ownerLogin: string
+): Promise<boolean> {
+  const enterprise = await getEnterpriseClient([ownerLogin]); // Check enterprise status first
+  if (enterprise) {
+    console.log(`Account ${ownerLogin} is an enterprise client. Skipping quota check.`);
+    return true; // Enterprise clients bypass quota
+  }
+
+  console.log(`Account ${ownerLogin} is not an enterprise client. Checking usage quota.`);
+
+  const subscription = await getSubscriptionDetails(octokit, ownerLogin);
+
+  // Note: We might not need isActive check if getSubscriptionDetails handles it by returning 0 limit
+  if (!subscription.isActive) {
+    console.warn(`Subscription for ${ownerLogin} is not active. Limit: ${subscription.monthlyPrLimit}.`);
+    // If limit is 0 for inactive, the check below will handle it.
+  }
+
+  const usageData = await getInstallationUsage(installationId); // Fetches or creates usage doc
+  const nextBillingDate = new Date(usageData.next_billing_date);
+
+  // Calculate the start of the current billing cycle
+  const cycleStartDate = new Date(nextBillingDate);
+  cycleStartDate.setMonth(cycleStartDate.getMonth() - 1);
+
+  const prsThisCycle = usageData.pull_requests.filter(pr => new Date(pr.created_at) >= cycleStartDate);
+  const currentPrCount = prsThisCycle.length;
+
+  console.log(`Quota check for ${ownerLogin}: Limit=${subscription.monthlyPrLimit}, Used=${currentPrCount}, CycleStart=${cycleStartDate.toISOString()}, NextBilling=${nextBillingDate.toISOString()}`);
+
+  if (currentPrCount >= subscription.monthlyPrLimit) {
+    console.warn(`Quota exceeded for ${ownerLogin} (Installation ID: ${installationId}). Limit: ${subscription.monthlyPrLimit}, Used: ${currentPrCount}.`);
+    // Use the next_billing_date from the usage data for the comment
+    await createQuotaExceededComment(octokit, payload, usageData.next_billing_date.toISOString());
+    return false; // Quota exceeded
+  }
+
+  console.log(`Quota check passed for ${ownerLogin}.`);
+  return true; // Quota check passed
 }
 
 /**

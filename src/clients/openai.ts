@@ -18,30 +18,35 @@ const MODEL_NAME = "google/gemini-2.0-flash-001"; // Updated model name based on
  */
 export async function extractSessionCost(jobOutput: string): Promise<number> {
   try {
-    // First try to extract cost using regex patterns
-    const costPatterns = [
-      /Total cost: \$([0-9.]+)/i,
-      /Cost: \$([0-9.]+)/i,
-      /\$([0-9.]+) total cost/i,
-      /Session cost: \$([0-9.]+)/i
-    ];
-    
-    for (const pattern of costPatterns) {
-      const match = jobOutput.match(pattern);
-      if (match && match[1]) {
-        return parseFloat(match[1]);
-      }
+    // Regex to find the LAST occurrence of the specific cost format
+    // Looks for "Cost: /entrypoint.sh.XXXX message, /entrypoint.sh.YY session."
+    // Captures the session cost (YY)
+    const costPattern = /Cost: \/entrypoint\.sh\.(\d+(?:\.\d+)?) message, \/entrypoint\.sh\.(\d+(?:\.\d+)?) session\./g;
+    let lastMatch: RegExpExecArray | null = null;
+    let currentMatch: RegExpExecArray | null;
+
+    while ((currentMatch = costPattern.exec(jobOutput)) !== null) {
+      lastMatch = currentMatch; // Keep track of the last match found
     }
-    
+
+    if (lastMatch && lastMatch[2]) {
+      // Use the second capture group (session cost) from the last match
+      return parseFloat(lastMatch[2]);
+    }
+
     // If regex fails, use AI to extract the cost
+    console.warn("Regex failed to find cost pattern. Falling back to AI extraction.");
     const completion = await openAIClient.chat.completions.create({
       model: MODEL_NAME,
       messages: [
         {
           role: "system",
-          content: `You are a cost extraction assistant. Extract ONLY the dollar cost from the job output log. 
-          Look for patterns like "Total cost: $X.XX", "Cost: $X.XX", "$X.XX total cost", etc. 
-          Return ONLY the numeric value (e.g., "0.12" not "$0.12"). If no cost is found, return "0".`
+          content: `You are a cost extraction assistant. Extract ONLY the numeric session cost from the LAST occurrence of a line matching the format "Cost: /entrypoint.sh.X message, /entrypoint.sh.Y session." in the provided log.
+          For example, if the log contains:
+          "Cost: /entrypoint.sh.0.0085 message, /entrypoint.sh.0.01 session."
+          "Cost: /entrypoint.sh.0.0090 message, /entrypoint.sh.0.02 session."
+          You should extract "0.02".
+          Return ONLY the numeric value (e.g., "0.02"). If no matching line is found, return "0".`
         },
         {
           role: "user",

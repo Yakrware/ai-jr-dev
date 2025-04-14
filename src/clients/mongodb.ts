@@ -19,6 +19,7 @@ export type PullRequest = {
 
 export type InstallationUsage = {
   installation_id: number;
+  next_billing_date: Date; // Track when the next billing cycle starts
   pull_requests: PullRequest[];
 };
 
@@ -41,12 +42,32 @@ export async function getEnterpriseClient(names: string[]) {
  */
 export async function getInstallationUsage(
   installationId: number
-): Promise<InstallationUsage | null> {
+): Promise<InstallationUsage> {
   await client.connect();
-  return client
-    .db()
-    .collection("installationUsage")
-    .findOne<InstallationUsage>({ installation_id: installationId });
+  const db = client.db();
+  const collection = db.collection<InstallationUsage>("installations");
+
+  const existingUsage = await collection.findOne({ installation_id: installationId });
+
+  if (existingUsage) {
+    return existingUsage;
+  } else {
+    // Create default usage record if not found
+    const nextBillingDate = new Date();
+    nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+    nextBillingDate.setDate(1);
+    nextBillingDate.setHours(0, 0, 0, 0); // Start of the day
+
+    const newUsage: InstallationUsage = {
+      installation_id: installationId,
+      next_billing_date: nextBillingDate,
+      pull_requests: [],
+    };
+
+    await collection.insertOne(newUsage);
+    console.log(`Created initial usage record for installation ${installationId} with next billing date ${nextBillingDate.toISOString()}`);
+    return newUsage;
+  }
 }
 
 /**
@@ -59,7 +80,7 @@ export async function addPullRequestToUsage(
 ): Promise<void> {
   await client.connect();
   const db = client.db();
-  const collection = db.collection("installationUsage");
+  const collection = db.collection<InstallationUsage>("installations");
 
   // Create new PR record
   const newPr: PullRequest = {
@@ -90,7 +111,7 @@ export async function addSessionToPullRequest(
 ): Promise<void> {
   await client.connect();
   const db = client.db();
-  const collection = db.collection("installationUsage");
+  const collection = db.collection<InstallationUsage>("installations");
 
   const session = {
     timestamp: new Date(),
