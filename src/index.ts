@@ -3,12 +3,19 @@ import { createNodeMiddleware } from "@octokit/webhooks";
 import { runCloudRunJob } from "./clients/cloudrun.js";
 import dotenv from "dotenv";
 import { generateIssuePrompt, generateReviewPrompt } from "./lib/prompt.js";
-import * as githubClient from "./clients/github.js";
-import { 
-  getEnterpriseClient,
-  getInstallationUsage,
+import {
+  checkQuotaAndNotify,
+  hasBranchChanged,
+  createWorkingComment,
+  fetchBranch,
+  createPullRequest,
+  resetReviewRequest,
+  closeIssueForMergedPr,
+  handleIssueError,
+} from "./clients/github.js";
+import {
   addPullRequestToUsage,
-  addSessionToPullRequest
+  addSessionToPullRequest,
 } from "./clients/mongodb.js";
 import { identifyMissingFiles, extractSessionCost } from "./clients/openai.js";
 
@@ -38,24 +45,24 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       const issueNumber = payload.issue.number;
       const repoFullName = payload.repository.full_name;
 
-      console.log(`Processing issue #${issueNumber} in ${repoFullName} for label "${payload.label.name}"`);
+      console.log(
+        `Processing issue #${issueNumber} in ${repoFullName} for label "${payload.label.name}"`
+      );
 
-      // --- Quota Check ---
-      const quotaCheckPassed = await githubClient.checkQuotaAndNotify(
+      const quotaCheckPassed = await checkQuotaAndNotify(
         octokit,
         payload,
         installationId,
-        payload.repository.owner.login
+        owner.login
       );
 
       if (!quotaCheckPassed) {
         return; // Stop processing if quota exceeded or error occurred during check
       }
-      // --- End Quota Check ---
 
-      await githubClient.createWorkingComment(octokit, payload);
+      await createWorkingComment(octokit, payload);
 
-      const branchName = await githubClient.fetchBranch(octokit, payload);
+      const branchName = await fetchBranch(octokit, payload);
 
       // Generate prompt using the payload directly
       const prompt = generateIssuePrompt(payload);
@@ -68,9 +75,10 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       };
 
       let result = await runCloudRunJob(octokit, jobParams);
+      let sessionCost = await extractSessionCost(result);
 
       // Check if the job made any commits
-      const changed = await githubClient.hasBranchChanged({
+      const changed = await hasBranchChanged({
         octokit,
         repository: payload.repository,
         branchName: branchName,
@@ -79,49 +87,37 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       if (!changed) {
         // Analyze the first run's output to see if files were missing
         const files = await identifyMissingFiles(prompt, result);
-
-        if (files.length > 0) {
-          // Update job params with files for the second run
-          const secondRunParams = { ...jobParams, files };
-          result = await runCloudRunJob(octokit, secondRunParams);
-        } else {
-          // If no specific files identified, run the job again with original params
-          // Consider if a modified prompt is needed here instead/as well.
-          result = await runCloudRunJob(octokit, jobParams);
-        }
-
-        // Optional: Check again after the second run
-        const changedAfterSecondRun = await githubClient.hasBranchChanged({
-          octokit,
-          repository: payload.repository,
-          branchName: branchName,
-        });
+        result = await runCloudRunJob(octokit, { ...jobParams, files });
+        sessionCost += await extractSessionCost(result);
       }
 
       // Check if changes were made before creating PR
-      const finalBranchChanged = await githubClient.hasBranchChanged({
+      const finalBranchChanged = await hasBranchChanged({
         octokit,
         repository: payload.repository,
         branchName: branchName,
       });
 
       if (!finalBranchChanged) {
-        console.warn(`Branch ${branchName} still has no changes after all attempts. Aborting PR creation.`);
+        console.warn(
+          `Branch ${branchName} still has no changes after all attempts. Aborting PR creation.`
+        );
         // TODO: Add comment explaining no changes were made and remove label?
         return; // Exit early
       }
 
       // create a pull request summary using the job output
-      const prResponse = await githubClient.createPullRequest(octokit, payload, branchName, result);
+      const prResponse = await createPullRequest(
+        octokit,
+        payload,
+        branchName,
+        result
+      );
       const prNumber = prResponse.data.number;
-      console.log(`Pull Request #${prNumber} created for issue #${issueNumber}.`);
 
       // --- Record PR Usage ---
       try {
-        const initialCost = await extractSessionCost(result); // Use final job output
-        console.log(`Extracted initial cost for PR #${prNumber}: ${initialCost}`);
-        await addPullRequestToUsage(installationId, prNumber, initialCost);
-        console.log(`Recorded usage for PR #${prNumber} in installation ${installationId}.`);
+        await addPullRequestToUsage(installationId, prNumber, sessionCost);
       } catch (dbError) {
         console.error(`Failed to record usage for PR #${prNumber}:`, dbError);
         // Decide if this failure is critical. Logging might be sufficient.
@@ -129,7 +125,7 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       // --- End Record PR Usage ---
     } catch (e: any) {
       // Use the centralized error handler
-      await githubClient.handleIssueError(octokit, payload, e);
+      await handleIssueError(octokit, payload, e);
     }
   }
 });
@@ -151,7 +147,9 @@ octoApp.webhooks.on(
       )
     ) {
       try {
-        console.log(`Processing 'changes_requested' review for PR #${prNumber} in ${repoFullName}`);
+        console.log(
+          `Processing 'changes_requested' review for PR #${prNumber} in ${repoFullName}`
+        );
 
         // Generate prompt using the new function, passing octokit and payload
         const prompt = await generateReviewPrompt({ octokit, payload });
@@ -174,7 +172,9 @@ octoApp.webhooks.on(
         // Extract filenames
         const files = prFiles.map((file) => file.filename);
 
-        console.log(`Running Cloud Run job for review feedback on PR #${prNumber}`);
+        console.log(
+          `Running Cloud Run job for review feedback on PR #${prNumber}`
+        );
         const result = await runCloudRunJob(octokit, {
           installationId,
           prompt,
@@ -182,23 +182,26 @@ octoApp.webhooks.on(
           branchName: payload.pull_request.head.ref,
           files, // Pass the list of changed files
         });
-        console.log(`Cloud Run job for review feedback on PR #${prNumber} completed. Output length: ${result.length}`);
+        console.log(
+          `Cloud Run job for review feedback on PR #${prNumber} completed. Output length: ${result.length}`
+        );
 
         // --- Record Session Usage ---
         try {
           const sessionCost = await extractSessionCost(result);
-          console.log(`Extracted session cost for review on PR #${prNumber}: ${sessionCost}`);
           await addSessionToPullRequest(installationId, prNumber, sessionCost);
-          console.log(`Recorded review session usage for PR #${prNumber} in installation ${installationId}.`);
         } catch (dbError) {
-          console.error(`Failed to record review session usage for PR #${prNumber}:`, dbError);
+          console.error(
+            `Failed to record review session usage for PR #${prNumber}:`,
+            dbError
+          );
         }
         // --- End Record Session Usage ---
 
         // TODO: use image output to make any comments, such as commands that the AI needs the user's help running
         // TODO: clean up - use graphql API to hide all change requests
         // TODO: Mark any floating comments as resolved.
-        await githubClient.resetReviewRequest(octokit, payload);
+        await resetReviewRequest(octokit, payload);
         // add to the current PR cost
       } catch (e: any) {
         // Consider adding a specific error handler for review events if needed
@@ -220,7 +223,7 @@ octoApp.webhooks.on("pull_request.closed", async ({ payload, octokit }) => {
 
   if (payload.pull_request.merged && (isAppPr || hasWatchedLabel)) {
     try {
-      await githubClient.closeIssueForMergedPr(octokit, payload);
+      await closeIssueForMergedPr(octokit, payload);
     } catch (e: any) {
       console.error("Error processing PR closed event:", e);
       // Potentially add error handling comment on the PR or related issue if the client function didn't handle it

@@ -1,6 +1,7 @@
 import { Octokit } from "octokit";
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 import { kebabCase } from "../utilities.js"; // Assuming kebabCase is used internally
+import { getEnterpriseClient, getInstallation } from "./mongodb.js";
 
 // --- Mocks ---
 
@@ -10,6 +11,19 @@ const mockPrDescription = "Mocked AI-generated PR description.";
 jest.unstable_mockModule("./dist/clients/openai.js", () => ({
   __esModule: true,
   generatePrDescription: jest.fn().mockResolvedValue(mockPrDescription),
+  // Mock other exports from openai.js if they are used elsewhere in the test file
+  // identifyMissingFiles: jest.fn().mockResolvedValue([]),
+}));
+// @ts-ignore
+jest.unstable_mockModule("./dist/clients/mongodb.js", () => ({
+  __esModule: true,
+  getEnterpriseClient: jest
+    .fn()
+    .mockResolvedValue({ name: "tester", monthlyLimit: 1000 }),
+  getInstallation: jest.fn().mockResolvedValue({
+    installationId: 5,
+    renewalDate: "2025-01-01T10:10:20Z",
+  }),
   // Mock other exports from openai.js if they are used elsewhere in the test file
   // identifyMissingFiles: jest.fn().mockResolvedValue([]),
 }));

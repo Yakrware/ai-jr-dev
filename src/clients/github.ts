@@ -2,7 +2,7 @@ import { Octokit } from "octokit";
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 import { kebabCase } from "../utilities.js";
 import { generatePrDescription } from "./openai.js";
-import { getEnterpriseClient, getInstallationUsage } from "./mongodb.js";
+import { getEnterpriseClient, getInstallation } from "./mongodb.js";
 
 // Type definitions for payloads used in this client
 type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">;
@@ -12,21 +12,9 @@ type PullRequestClosedPayload = WebhookEventDefinition<"pull-request-closed">;
 
 // Subscription interface
 export interface Subscription {
-  isActive: boolean;
   monthlyPrLimit: number;
   renewalDate: string; // ISO date string
 }
-
-// Default subscription values
-const DEFAULT_SUBSCRIPTION: Subscription = {
-  isActive: true,
-  monthlyPrLimit: 0, // Default limit is 0 for free tier
-  renewalDate: new Date(
-    new Date().getFullYear(),
-    new Date().getMonth() + 1,
-    1
-  ).toISOString(), // First day of next month
-};
 
 /**
  * Creates an initial "I'm on it!" comment on an issue.
@@ -52,6 +40,13 @@ interface HasBranchChangedParams {
   repository: IssuesLabeledPayload["repository"]; // Use the repository type from the payload
   branchName: string;
 }
+
+const PRICE_LIMITS: { [key: number]: number } = {
+  500: 8,
+  1000: 20,
+  2000: 50,
+};
+
 export async function hasBranchChanged({
   octokit,
   repository,
@@ -81,7 +76,6 @@ export async function hasBranchChanged({
     return false;
   }
 }
-
 
 /**
  * Fetches or creates a branch based on the issue details.
@@ -161,48 +155,32 @@ export async function createPullRequest(
 export async function getSubscriptionDetails(
   octokit: Octokit,
   accountName: string
-): Promise<Subscription> {
+): Promise<Subscription | null> {
   try {
     // Use apps.getSubscriptionPlanForAccount
     const response = await octokit.rest.apps.getSubscriptionPlanForAccount({
-      account_id: (await octokit.rest.users.getByUsername({ username: accountName })).data.id,
+      account_id: (
+        await octokit.rest.users.getByUsername({ username: accountName })
+      ).data.id,
     });
 
-    const plan = response.data.marketplace_purchase?.plan;
+    const marketplace_purchase = response.data.marketplace_purchase;
 
-    if (plan) {
-      // Map plan details to Subscription interface
-      let limit = DEFAULT_SUBSCRIPTION.monthlyPrLimit; // Start with default
-      if (plan.bullets) {
-         // Example: Look for a bullet like "Up to 20 PRs per month"
-         const limitBullet = plan.bullets.find(b => b?.toLowerCase().includes('prs per month'));
-         if (limitBullet) {
-           const match = limitBullet.match(/(\d+)\s+prs/i);
-           if (match && match[1]) {
-             limit = parseInt(match[1], 10);
-           }
-         }
-      }
-
+    if (
+      marketplace_purchase &&
+      marketplace_purchase.next_billing_date &&
+      marketplace_purchase.plan
+    ) {
       return {
-        isActive: response.data.marketplace_purchase?.on_free_trial || (plan.monthly_price_in_cents ?? 0) > 0,
-        monthlyPrLimit: limit,
-        renewalDate: response.data.marketplace_purchase?.next_billing_date ?? DEFAULT_SUBSCRIPTION.renewalDate,
+        monthlyPrLimit:
+          PRICE_LIMITS[marketplace_purchase.plan.monthly_price_in_cents],
+        renewalDate: marketplace_purchase.next_billing_date,
       };
     } else {
-      // No active plan found, return default
-      console.log(`No active marketplace subscription found for ${accountName}. Using default.`);
-      return DEFAULT_SUBSCRIPTION;
+      return null;
     }
-
   } catch (error: any) {
-    // Handle cases where the account doesn't exist or has no plan (e.g., 404)
-    if (error.status === 404) {
-      console.log(`No marketplace subscription found for account ${accountName}. Using default.`);
-    } else {
-      console.error(`Error retrieving subscription for ${accountName}:`, error);
-    }
-    return DEFAULT_SUBSCRIPTION; // Fallback to default on error or no plan
+    return null; // Fallback to default on error or no plan
   }
 }
 
@@ -218,40 +196,33 @@ export async function checkQuotaAndNotify(
 ): Promise<boolean> {
   const enterprise = await getEnterpriseClient([ownerLogin]); // Check enterprise status first
   if (enterprise) {
-    console.log(`Account ${ownerLogin} is an enterprise client. Skipping quota check.`);
     return true; // Enterprise clients bypass quota
   }
-
-  console.log(`Account ${ownerLogin} is not an enterprise client. Checking usage quota.`);
 
   const subscription = await getSubscriptionDetails(octokit, ownerLogin);
 
   // Note: We might not need isActive check if getSubscriptionDetails handles it by returning 0 limit
-  if (!subscription.isActive) {
-    console.warn(`Subscription for ${ownerLogin} is not active. Limit: ${subscription.monthlyPrLimit}.`);
-    // If limit is 0 for inactive, the check below will handle it.
+  if (!subscription) {
+    // create a comment that says we couldn't find an active subscription
+    return false;
   }
 
-  const usageData = await getInstallationUsage(installationId); // Fetches or creates usage doc
-  const nextBillingDate = new Date(usageData.next_billing_date);
+  const usageData = await getInstallation(
+    installationId,
+    subscription.renewalDate
+  ); // Fetches or creates usage doc
 
-  // Calculate the start of the current billing cycle
-  const cycleStartDate = new Date(nextBillingDate);
-  cycleStartDate.setMonth(cycleStartDate.getMonth() - 1);
+  const prCount =
+    usageData?.pullRequests?.reduce(
+      (tot, pr) => tot + Math.ceil(pr.cost / 0.25),
+      0
+    ) || 0;
 
-  const prsThisCycle = usageData.pull_requests.filter(pr => new Date(pr.created_at) >= cycleStartDate);
-  const currentPrCount = prsThisCycle.length;
-
-  console.log(`Quota check for ${ownerLogin}: Limit=${subscription.monthlyPrLimit}, Used=${currentPrCount}, CycleStart=${cycleStartDate.toISOString()}, NextBilling=${nextBillingDate.toISOString()}`);
-
-  if (currentPrCount >= subscription.monthlyPrLimit) {
-    console.warn(`Quota exceeded for ${ownerLogin} (Installation ID: ${installationId}). Limit: ${subscription.monthlyPrLimit}, Used: ${currentPrCount}.`);
-    // Use the next_billing_date from the usage data for the comment
-    await createQuotaExceededComment(octokit, payload, usageData.next_billing_date.toISOString());
+  if (prCount >= subscription.monthlyPrLimit) {
+    await createQuotaExceededComment(octokit, payload, usageData?.renewalDate);
     return false; // Quota exceeded
   }
 
-  console.log(`Quota check passed for ${ownerLogin}.`);
   return true; // Quota check passed
 }
 
@@ -261,21 +232,27 @@ export async function checkQuotaAndNotify(
 export async function createQuotaExceededComment(
   octokit: Octokit,
   payload: IssuesLabeledPayload,
-  renewalDate: string
+  renewalDate: string | undefined
 ): Promise<void> {
-  const formattedDate = new Date(renewalDate).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-  
+  const formattedDate =
+    renewalDate &&
+    new Date(renewalDate).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
   await octokit.rest.issues.createComment({
     owner: payload.repository.owner.login,
     repo: payload.repository.name,
     issue_number: payload.issue.number,
-    body: `⚠️ **Monthly AI PR Quota Exceeded**\n\nI'm sorry, but you've reached your monthly limit for AI-generated pull requests. Your quota will reset on ${formattedDate}.\n\nPlease try again after that date, or consider upgrading your subscription for a higher limit.`,
+    body: `⚠️ **Monthly AI PR Quota Exceeded**\n\nI'm sorry, but you've reached your monthly limit for AI-generated pull requests. ${
+      formattedDate
+        ? `Your quota will reset on ${formattedDate}.\n\nPlease try again after that date, or consider upgrading your subscription for a higher limit.`
+        : `Please consider renewing your subscription.`
+    }`,
   });
-  
+
   // Remove the AI label to indicate we're not processing this
   if (payload.label?.name) {
     await octokit.rest.issues.removeLabel({

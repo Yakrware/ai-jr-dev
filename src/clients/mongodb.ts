@@ -17,10 +17,10 @@ export type PullRequest = {
   }>;
 };
 
-export type InstallationUsage = {
-  installation_id: number;
-  next_billing_date: Date; // Track when the next billing cycle starts
-  pull_requests: PullRequest[];
+export type Installation = {
+  installationId: number;
+  renewalDate: string;
+  pullRequests?: PullRequest[];
 };
 
 /**
@@ -40,34 +40,27 @@ export async function getEnterpriseClient(names: string[]) {
 /**
  * Retrieves usage data for a specific installation
  */
-export async function getInstallationUsage(
-  installationId: number
-): Promise<InstallationUsage> {
+export async function getInstallation(
+  installationId: number,
+  renewalDate: string
+): Promise<Installation | null> {
   await client.connect();
   const db = client.db();
-  const collection = db.collection<InstallationUsage>("installations");
+  const collection = db.collection<Installation>("installations");
 
-  const existingUsage = await collection.findOne({ installation_id: installationId });
+  const installation = await collection.findOneAndUpdate(
+    {
+      installationId,
+      renewalDate,
+    },
+    { $set: { installationId, renewalDate, pullRequests: [] } },
+    {
+      upsert: true,
+      returnDocument: "after",
+    }
+  );
 
-  if (existingUsage) {
-    return existingUsage;
-  } else {
-    // Create default usage record if not found
-    const nextBillingDate = new Date();
-    nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
-    nextBillingDate.setDate(1);
-    nextBillingDate.setHours(0, 0, 0, 0); // Start of the day
-
-    const newUsage: InstallationUsage = {
-      installation_id: installationId,
-      next_billing_date: nextBillingDate,
-      pull_requests: [],
-    };
-
-    await collection.insertOne(newUsage);
-    console.log(`Created initial usage record for installation ${installationId} with next billing date ${nextBillingDate.toISOString()}`);
-    return newUsage;
-  }
+  return installation as Installation | null;
 }
 
 /**
@@ -80,7 +73,7 @@ export async function addPullRequestToUsage(
 ): Promise<void> {
   await client.connect();
   const db = client.db();
-  const collection = db.collection<InstallationUsage>("installations");
+  const collection = db.collection<Installation>("installations");
 
   // Create new PR record
   const newPr: PullRequest = {
@@ -111,7 +104,7 @@ export async function addSessionToPullRequest(
 ): Promise<void> {
   await client.connect();
   const db = client.db();
-  const collection = db.collection<InstallationUsage>("installations");
+  const collection = db.collection<Installation>("installations");
 
   const session = {
     timestamp: new Date(),
@@ -120,13 +113,13 @@ export async function addSessionToPullRequest(
 
   // Add session to the PR and update total cost
   await collection.updateOne(
-    { 
+    {
       installation_id: installationId,
-      "pull_requests.number": prNumber 
+      "pull_requests.number": prNumber,
     },
     {
       $push: { "pull_requests.$.sessions": session },
-      $inc: { "pull_requests.$.cost": sessionCost }
+      $inc: { "pull_requests.$.cost": sessionCost },
     }
   );
 }

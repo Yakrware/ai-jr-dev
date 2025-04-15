@@ -45,6 +45,11 @@ export async function runCloudRunJob(
       8 // Remove 'https://'
     )}`;
 
+    const filesArg =
+      files && files.length > 0
+        ? files.map((f) => `--file ${f}`).join(" ")
+        : "";
+
     const overrides: protos.google.cloud.run.v2.IRunJobRequest["overrides"] = {
       containerOverrides: [
         {
@@ -55,19 +60,14 @@ export async function runCloudRunJob(
               value: cloneUrlWithToken,
             },
             { name: "BRANCH_NAME", value: branchName },
+            {
+              name: "FILES",
+              value: filesArg,
+            },
           ],
         },
       ],
     };
-
-    // Add FILES env var if provided, formatted for aider
-    if (files && files.length > 0) {
-      const filesArg = files.map((f) => `--file ${f}`).join(" ");
-      overrides.containerOverrides![0].env!.push({
-        name: "FILES",
-        value: filesArg,
-      });
-    }
 
     const [operation] = await jobsClient.runJob({
       name: FULL_JOB_NAME,
