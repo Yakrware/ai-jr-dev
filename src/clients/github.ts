@@ -204,6 +204,29 @@ export async function checkQuotaAndNotify(
   // Note: We might not need isActive check if getSubscriptionDetails handles it by returning 0 limit
   if (!subscription) {
     // create a comment that says we couldn't find an active subscription
+    await octokit.rest.issues.createComment({
+      owner: payload.repository.owner.login,
+      repo: payload.repository.name,
+      issue_number: payload.issue.number,
+      body: "⚠️ **Subscription Not Found**\n\nI couldn't find an active subscription for your account. Please ensure you have an active subscription or start a new one to use AI features.",
+    });
+    // Remove the AI label as we cannot proceed
+    if (payload.label?.name) {
+      try {
+        await octokit.rest.issues.removeLabel({
+          owner: payload.repository.owner.login,
+          repo: payload.repository.name,
+          issue_number: payload.issue.number,
+          name: payload.label.name,
+        });
+      } catch (labelError) {
+        console.error(
+          `Failed to remove label '${payload.label.name}' after subscription check failed:`,
+          labelError
+        );
+        // Continue even if label removal fails
+      }
+    }
     return false;
   }
 
