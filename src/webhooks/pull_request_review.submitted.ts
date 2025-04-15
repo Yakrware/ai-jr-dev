@@ -11,7 +11,7 @@ import { identifyMissingFiles, extractSessionCost } from "../clients/openai.js";
 import { WATCHED_LABELS, APP_USER_ID } from "../constants.js";
 
 type PullRequestReviewSubmittedPayload =
-  WebhookEventDefinition<"pull_request_review.submitted">;
+  WebhookEventDefinition<"pull-request-review-submitted">;
 
 export async function handlePullRequestReviewSubmitted({
   payload,

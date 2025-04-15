@@ -14,7 +14,7 @@ import { addPullRequestToUsage } from "../clients/mongodb.js";
 import { identifyMissingFiles, extractSessionCost } from "../clients/openai.js";
 import { WATCHED_LABELS } from "../constants.js";
 
-type IssuesLabeledPayload = WebhookEventDefinition<"issues.labeled">;
+type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">;
 
 export async function handleIssuesLabeled({
   payload,

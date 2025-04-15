@@ -3,7 +3,7 @@ import { WebhookEventDefinition } from "@octokit/webhooks/types";
 import { closeIssueForMergedPr } from "../clients/github.js";
 import { WATCHED_LABELS, APP_USER_ID } from "../constants.js";
 
-type PullRequestClosedPayload = WebhookEventDefinition<"pull_request.closed">;
+type PullRequestClosedPayload = WebhookEventDefinition<"pull-request-closed">;
 
 export async function handlePullRequestClosed({
   payload,
