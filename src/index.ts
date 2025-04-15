@@ -45,10 +45,6 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
       const issueNumber = payload.issue.number;
       const repoFullName = payload.repository.full_name;
 
-      console.log(
-        `Processing issue #${issueNumber} in ${repoFullName} for label "${payload.label.name}"`
-      );
-
       const quotaCheckPassed = await checkQuotaAndNotify(
         octokit,
         payload,

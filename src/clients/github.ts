@@ -194,6 +194,7 @@ export async function checkQuotaAndNotify(
   installationId: number,
   ownerLogin: string
 ): Promise<boolean> {
+  console.log(`Looking for login for ${ownerLogin}`);
   const enterprise = await getEnterpriseClient([ownerLogin]); // Check enterprise status first
   if (enterprise) {
     return true; // Enterprise clients bypass quota
