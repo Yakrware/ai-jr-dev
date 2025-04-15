@@ -144,16 +144,12 @@ octoApp.webhooks.on(
       )
     ) {
       try {
-        console.log(
-          `Processing 'changes_requested' review for PR #${prNumber} in ${repoFullName}`
-        );
-
         // Generate prompt using the new function, passing octokit and payload
         const prompt = await generateReviewPrompt({ octokit, payload });
 
         // Check if a prompt was generated (it might be null if no actionable feedback)
         if (!prompt) {
-          console.log(
+          console.warn(
             `No actionable feedback found in review ${payload.review.id}. Skipping job run.`
           );
           return;
@@ -167,25 +163,48 @@ octoApp.webhooks.on(
         });
 
         // Extract filenames
-        const files = prFiles.map((file) => file.filename);
+        let files = prFiles.map((file) => file.filename);
+        const startBranch = await octokit.rest.repos.getBranch({
+          owner: payload.repository.owner.login,
+          repo: payload.repository.name,
+          branch: payload.pull_request.head.ref,
+        });
 
-        console.log(
-          `Running Cloud Run job for review feedback on PR #${prNumber}`
-        );
-        const result = await runCloudRunJob(octokit, {
+        const jobParams = {
           installationId,
           prompt,
           cloneUrlWithoutToken: payload.repository.clone_url,
           branchName: payload.pull_request.head.ref,
-          files, // Pass the list of changed files
+          files,
+        };
+        let result = await runCloudRunJob(octokit, jobParams);
+        let sessionCost = await extractSessionCost(result);
+
+        const midBranch = await octokit.rest.repos.getBranch({
+          owner: payload.repository.owner.login,
+          repo: payload.repository.name,
+          branch: payload.pull_request.head.ref,
         });
-        console.log(
-          `Cloud Run job for review feedback on PR #${prNumber} completed. Output length: ${result.length}`
-        );
+
+        if (startBranch.data.commit.sha === midBranch.data.commit.sha) {
+          // first run didn't find anything.
+          files = files.concat(await identifyMissingFiles(prompt, result));
+          result = await runCloudRunJob(octokit, { ...jobParams, files });
+          sessionCost += await extractSessionCost(result);
+
+          const endBranch = await octokit.rest.repos.getBranch({
+            owner: payload.repository.owner.login,
+            repo: payload.repository.name,
+            branch: payload.pull_request.head.ref,
+          });
+
+          if (startBranch.data.commit.sha === endBranch.data.commit.sha) {
+            // TODO: Add a comment to PR about it not finding a change.
+          }
+        }
 
         // --- Record Session Usage ---
         try {
-          const sessionCost = await extractSessionCost(result);
           const installation = await getInstallationFromOwner({
             octokit,
             payload,
