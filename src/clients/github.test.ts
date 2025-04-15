@@ -1,7 +1,6 @@
 import { Octokit } from "octokit";
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 import { kebabCase } from "../utilities.js"; // Assuming kebabCase is used internally
-import { getEnterpriseClient, getInstallation } from "./mongodb.js";
 
 // --- Mocks ---
 
