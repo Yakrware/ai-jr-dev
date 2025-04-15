@@ -1,5 +1,5 @@
 import { Octokit } from "octokit";
-import { WebhookEventMap } from "@octokit/webhooks/types";
+import { WebhookEventDefinition } from "@octokit/webhooks/types";
 import { runCloudRunJob } from "../clients/cloudrun.js";
 import { generateReviewPrompt } from "../lib/prompt.js";
 import {
@@ -11,7 +11,7 @@ import { identifyMissingFiles, extractSessionCost } from "../clients/openai.js";
 import { WATCHED_LABELS, APP_USER_ID } from "../constants.js";
 
 type PullRequestReviewSubmittedPayload =
-  WebhookEventMap["pull_request_review.submitted"];
+  WebhookEventDefinition<"pull_request_review.submitted">;
 
 export async function handlePullRequestReviewSubmitted({
   payload,

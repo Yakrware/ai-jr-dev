@@ -1,5 +1,5 @@
 import { Octokit } from "octokit";
-import { WebhookEventMap } from "@octokit/webhooks/types";
+import { WebhookEventDefinition } from "@octokit/webhooks/types";
 import { runCloudRunJob } from "../clients/cloudrun.js";
 import { generateIssuePrompt } from "../lib/prompt.js";
 import {
@@ -14,7 +14,7 @@ import { addPullRequestToUsage } from "../clients/mongodb.js";
 import { identifyMissingFiles, extractSessionCost } from "../clients/openai.js";
 import { WATCHED_LABELS } from "../constants.js";
 
-type IssuesLabeledPayload = WebhookEventMap["issues.labeled"];
+type IssuesLabeledPayload = WebhookEventDefinition<"issues.labeled">;
 
 export async function handleIssuesLabeled({
   payload,
