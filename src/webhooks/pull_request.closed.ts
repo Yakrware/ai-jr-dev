@@ -1,5 +1,5 @@
 import { Octokit } from "octokit";
-import { WebhookEventMap } from "@octokit/webhooks-types";
+import { WebhookEventMap } from "@octokit/webhooks/types";
 import { closeIssueForMergedPr } from "../clients/github.js";
 import { WATCHED_LABELS, APP_USER_ID } from "../constants.js";
 

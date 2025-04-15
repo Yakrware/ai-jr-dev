@@ -1,5 +1,5 @@
 import { Octokit } from "octokit";
-import { WebhookEventMap } from "@octokit/webhooks-types";
+import { WebhookEventMap } from "@octokit/webhooks/types";
 import { runCloudRunJob } from "../clients/cloudrun.js";
 import { generateIssuePrompt } from "../lib/prompt.js";
 import {
