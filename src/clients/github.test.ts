@@ -13,6 +13,19 @@ jest.unstable_mockModule("./dist/clients/openai.js", () => ({
   // Mock other exports from openai.js if they are used elsewhere in the test file
   // identifyMissingFiles: jest.fn().mockResolvedValue([]),
 }));
+// @ts-ignore
+jest.unstable_mockModule("./dist/clients/mongodb.js", () => ({
+  __esModule: true,
+  getEnterpriseClient: jest
+    .fn()
+    .mockResolvedValue({ name: "tester", monthlyLimit: 1000 }),
+  getInstallation: jest.fn().mockResolvedValue({
+    installationId: 5,
+    renewalDate: "2025-01-01T10:10:20Z",
+  }),
+  // Mock other exports from openai.js if they are used elsewhere in the test file
+  // identifyMissingFiles: jest.fn().mockResolvedValue([]),
+}));
 
 // Import AFTER mocks are set up
 const { generatePrDescription } = await import("./openai.js");

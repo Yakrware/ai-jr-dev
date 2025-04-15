@@ -2,12 +2,19 @@ import { Octokit } from "octokit";
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 import { kebabCase } from "../utilities.js";
 import { generatePrDescription } from "./openai.js";
+import { getEnterpriseClient, getInstallation } from "./mongodb.js";
 
 // Type definitions for payloads used in this client
 type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">;
 type PullRequestReviewSubmittedPayload =
   WebhookEventDefinition<"pull-request-review-submitted">;
 type PullRequestClosedPayload = WebhookEventDefinition<"pull-request-closed">;
+
+// Subscription interface
+export interface Subscription {
+  monthlyPrLimit: number;
+  renewalDate: string; // ISO date string
+}
 
 /**
  * Creates an initial "I'm on it!" comment on an issue.
@@ -33,6 +40,13 @@ interface HasBranchChangedParams {
   repository: IssuesLabeledPayload["repository"]; // Use the repository type from the payload
   branchName: string;
 }
+
+const PRICE_LIMITS: { [key: number]: number } = {
+  500: 8,
+  1000: 20,
+  2000: 50,
+};
+
 export async function hasBranchChanged({
   octokit,
   repository,
@@ -62,7 +76,6 @@ export async function hasBranchChanged({
     return false;
   }
 }
-
 
 /**
  * Fetches or creates a branch based on the issue details.
@@ -132,6 +145,146 @@ export async function createPullRequest(
   await createPrLinkedComment(octokit, payload, prResponse.data.html_url);
 
   return prResponse; // Return the full response object
+}
+
+/**
+ * Retrieves subscription details for a GitHub account.
+ * This would typically query a database or external service.
+ * For now, it returns default values.
+ */
+export async function getSubscriptionDetails(
+  octokit: Octokit,
+  accountName: string
+): Promise<Subscription | null> {
+  try {
+    // Use apps.getSubscriptionPlanForAccount
+    const response = await octokit.rest.apps.getSubscriptionPlanForAccount({
+      account_id: (
+        await octokit.rest.users.getByUsername({ username: accountName })
+      ).data.id,
+    });
+
+    const marketplace_purchase = response.data.marketplace_purchase;
+
+    if (
+      marketplace_purchase &&
+      marketplace_purchase.next_billing_date &&
+      marketplace_purchase.plan
+    ) {
+      return {
+        monthlyPrLimit:
+          PRICE_LIMITS[marketplace_purchase.plan.monthly_price_in_cents],
+        renewalDate: marketplace_purchase.next_billing_date,
+      };
+    } else {
+      return null;
+    }
+  } catch (error: any) {
+    return null; // Fallback to default on error or no plan
+  }
+}
+
+/**
+ * Checks if the account has exceeded their monthly PR quota and notifies if necessary.
+ * Returns true if the quota check passes, false otherwise.
+ */
+export async function checkQuotaAndNotify(
+  octokit: Octokit,
+  payload: IssuesLabeledPayload,
+  installationId: number,
+  ownerLogin: string
+): Promise<boolean> {
+  const enterprise = await getEnterpriseClient([ownerLogin]); // Check enterprise status first
+  if (enterprise) {
+    return true; // Enterprise clients bypass quota
+  }
+
+  const subscription = await getSubscriptionDetails(octokit, ownerLogin);
+
+  // Note: We might not need isActive check if getSubscriptionDetails handles it by returning 0 limit
+  if (!subscription) {
+    // create a comment that says we couldn't find an active subscription
+    await octokit.rest.issues.createComment({
+      owner: payload.repository.owner.login,
+      repo: payload.repository.name,
+      issue_number: payload.issue.number,
+      body: "⚠️ **Subscription Not Found**\n\nI couldn't find an active subscription for your account. Please ensure you have an active subscription or start a new one to use AI features.",
+    });
+    // Remove the AI label as we cannot proceed
+    if (payload.label?.name) {
+      try {
+        await octokit.rest.issues.removeLabel({
+          owner: payload.repository.owner.login,
+          repo: payload.repository.name,
+          issue_number: payload.issue.number,
+          name: payload.label.name,
+        });
+      } catch (labelError) {
+        console.error(
+          `Failed to remove label '${payload.label.name}' after subscription check failed:`,
+          labelError
+        );
+        // Continue even if label removal fails
+      }
+    }
+    return false;
+  }
+
+  const usageData = await getInstallation(
+    installationId,
+    subscription.renewalDate
+  ); // Fetches or creates usage doc
+
+  const prCount =
+    usageData?.pullRequests?.reduce(
+      (tot, pr) => tot + Math.ceil(pr.cost / 0.25),
+      0
+    ) || 0;
+
+  if (prCount >= subscription.monthlyPrLimit) {
+    await createQuotaExceededComment(octokit, payload, usageData?.renewalDate);
+    return false; // Quota exceeded
+  }
+
+  return true; // Quota check passed
+}
+
+/**
+ * Creates a comment on the issue explaining that the quota has been exceeded.
+ */
+export async function createQuotaExceededComment(
+  octokit: Octokit,
+  payload: IssuesLabeledPayload,
+  renewalDate: string | undefined
+): Promise<void> {
+  const formattedDate =
+    renewalDate &&
+    new Date(renewalDate).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+  await octokit.rest.issues.createComment({
+    owner: payload.repository.owner.login,
+    repo: payload.repository.name,
+    issue_number: payload.issue.number,
+    body: `⚠️ **Monthly AI PR Quota Exceeded**\n\nI'm sorry, but you've reached your monthly limit for AI-generated pull requests. ${
+      formattedDate
+        ? `Your quota will reset on ${formattedDate}.\n\nPlease try again after that date, or consider upgrading your subscription for a higher limit.`
+        : `Please consider renewing your subscription.`
+    }`,
+  });
+
+  // Remove the AI label to indicate we're not processing this
+  if (payload.label?.name) {
+    await octokit.rest.issues.removeLabel({
+      owner: payload.repository.owner.login,
+      repo: payload.repository.name,
+      issue_number: payload.issue.number,
+      name: payload.label.name,
+    });
+  }
 }
 
 /**
