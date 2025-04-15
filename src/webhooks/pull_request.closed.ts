@@ -4,14 +4,13 @@ import { closeIssueForMergedPr } from "../clients/github.js";
 import { WATCHED_LABELS, APP_USER_ID } from "../constants.js";
 
 type PullRequestClosedPayload = WebhookEventMap["pull_request.closed"];
-type PullRequestClosedOctokit = Octokit; // Or a more specific Octokit instance type
 
 export async function handlePullRequestClosed({
   payload,
   octokit,
 }: {
   payload: PullRequestClosedPayload;
-  octokit: PullRequestClosedOctokit;
+  octokit: Octokit;
 }) {
   if (!payload.installation) return;
 

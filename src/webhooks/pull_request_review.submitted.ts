@@ -12,14 +12,13 @@ import { WATCHED_LABELS, APP_USER_ID } from "../constants.js";
 
 type PullRequestReviewSubmittedPayload =
   WebhookEventMap["pull_request_review.submitted"];
-type PullRequestReviewSubmittedOctokit = Octokit; // Or a more specific Octokit instance type
 
 export async function handlePullRequestReviewSubmitted({
   payload,
   octokit,
 }: {
   payload: PullRequestReviewSubmittedPayload;
-  octokit: PullRequestReviewSubmittedOctokit;
+  octokit: Octokit;
 }) {
   if (!payload.installation || payload.review.state !== "changes_requested")
     return;

@@ -15,14 +15,13 @@ import { identifyMissingFiles, extractSessionCost } from "../clients/openai.js";
 import { WATCHED_LABELS } from "../constants.js";
 
 type IssuesLabeledPayload = WebhookEventMap["issues.labeled"];
-type IssuesLabeledOctokit = Octokit; // Or a more specific Octokit instance type if available
 
 export async function handleIssuesLabeled({
   payload,
   octokit,
 }: {
   payload: IssuesLabeledPayload;
-  octokit: IssuesLabeledOctokit;
+  octokit: Octokit;
 }) {
   if (!payload.installation || !payload.label?.name) return;
 
