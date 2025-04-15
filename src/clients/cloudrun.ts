@@ -56,7 +56,7 @@ export async function runCloudRunJob(
           env: [
             {
               name: "PROMPT",
-              value: prompt.replace(/["$<>]/, "\\$&"),
+              value: prompt.replace(/["$<>]/g, "\\$&"),
             },
             {
               name: "REPO_NAME",
