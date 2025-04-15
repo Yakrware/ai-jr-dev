@@ -43,7 +43,7 @@ export async function getEnterpriseClient(names: string[]) {
 export async function getInstallation(
   installationId: number,
   renewalDate: string
-): Promise<Installation | null> {
+): Promise<Installation> {
   await client.connect();
   const db = client.db();
   const collection = db.collection<Installation>("installations");
@@ -60,7 +60,7 @@ export async function getInstallation(
     }
   );
 
-  return installation as Installation | null;
+  return installation as Installation;
 }
 
 /**
@@ -68,6 +68,7 @@ export async function getInstallation(
  */
 export async function addPullRequestToUsage(
   installationId: number,
+  renewalDate: string,
   prNumber: number,
   initialCost: number = 0
 ): Promise<void> {
@@ -80,17 +81,20 @@ export async function addPullRequestToUsage(
     number: prNumber,
     created_at: new Date(),
     cost: initialCost,
-    sessions: [],
+    sessions: [
+      {
+        timestamp: new Date(),
+        cost: initialCost,
+      },
+    ],
   };
 
   // Upsert the installation usage record
   await collection.updateOne(
-    { installation_id: installationId },
+    { installationId, renewalDate },
     {
-      $setOnInsert: { installation_id: installationId },
-      $push: { pull_requests: newPr },
-    },
-    { upsert: true }
+      $set: { pull_requests: [newPr] },
+    }
   );
 }
 
@@ -99,6 +103,7 @@ export async function addPullRequestToUsage(
  */
 export async function addSessionToPullRequest(
   installationId: number,
+  renewalDate: string,
   prNumber: number,
   sessionCost: number
 ): Promise<void> {
@@ -106,20 +111,23 @@ export async function addSessionToPullRequest(
   const db = client.db();
   const collection = db.collection<Installation>("installations");
 
+  const installation = await getInstallation(installationId, renewalDate);
+
+  const pr = installation.pullRequests?.find((pr) => pr.number === prNumber);
   const session = {
     timestamp: new Date(),
     cost: sessionCost,
   };
+  pr?.sessions.push(session);
 
   // Add session to the PR and update total cost
   await collection.updateOne(
     {
-      installation_id: installationId,
-      "pull_requests.number": prNumber,
+      installationId,
+      renewalDate,
     },
     {
-      $push: { "pull_requests.$.sessions": session },
-      $inc: { "pull_requests.$.cost": sessionCost },
+      $set: { pullRequests: installation.pullRequests },
     }
   );
 }

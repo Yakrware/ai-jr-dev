@@ -12,10 +12,12 @@ import {
   resetReviewRequest,
   closeIssueForMergedPr,
   handleIssueError,
+  getInstallationFromOwner,
 } from "./clients/github.js";
 import {
   addPullRequestToUsage,
   addSessionToPullRequest,
+  getInstallation,
 } from "./clients/mongodb.js";
 import { identifyMissingFiles, extractSessionCost } from "./clients/openai.js";
 
@@ -29,10 +31,6 @@ const octoApp = new App({
   },
 });
 
-const isString = (item: string | undefined): item is string => {
-  return !!item;
-};
-
 const WATCHED_LABELS = ["aider", "ai-jr-dev"];
 
 octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
@@ -42,17 +40,15 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
     try {
       const owner = payload.repository.owner;
       const installationId = payload.installation.id;
-      const issueNumber = payload.issue.number;
-      const repoFullName = payload.repository.full_name;
 
-      const quotaCheckPassed = await checkQuotaAndNotify(
+      const installation = await checkQuotaAndNotify(
         octokit,
         payload,
         installationId,
         owner.login
       );
 
-      if (!quotaCheckPassed) {
+      if (!installation) {
         return; // Stop processing if quota exceeded or error occurred during check
       }
 
@@ -113,7 +109,12 @@ octoApp.webhooks.on("issues.labeled", async ({ payload, octokit }) => {
 
       // --- Record PR Usage ---
       try {
-        await addPullRequestToUsage(installationId, prNumber, sessionCost);
+        await addPullRequestToUsage(
+          installationId,
+          installation.renewalDate,
+          prNumber,
+          sessionCost
+        );
       } catch (dbError) {
         console.error(`Failed to record usage for PR #${prNumber}:`, dbError);
         // Decide if this failure is critical. Logging might be sufficient.
@@ -185,7 +186,16 @@ octoApp.webhooks.on(
         // --- Record Session Usage ---
         try {
           const sessionCost = await extractSessionCost(result);
-          await addSessionToPullRequest(installationId, prNumber, sessionCost);
+          const installation = await getInstallationFromOwner({
+            octokit,
+            payload,
+          });
+          await addSessionToPullRequest(
+            installationId,
+            installation.renewalDate,
+            prNumber,
+            sessionCost
+          );
         } catch (dbError) {
           console.error(
             `Failed to record review session usage for PR #${prNumber}:`,

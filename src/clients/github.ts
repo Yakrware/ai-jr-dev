@@ -2,7 +2,11 @@ import { Octokit } from "octokit";
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 import { kebabCase } from "../utilities.js";
 import { generatePrDescription } from "./openai.js";
-import { getEnterpriseClient, getInstallation } from "./mongodb.js";
+import {
+  getEnterpriseClient,
+  getInstallation,
+  Installation,
+} from "./mongodb.js";
 
 // Type definitions for payloads used in this client
 type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">;
@@ -184,6 +188,34 @@ export async function getSubscriptionDetails(
   }
 }
 
+export async function getInstallationFromOwner({
+  octokit,
+  payload,
+}: {
+  octokit: Octokit;
+  payload: IssuesLabeledPayload | PullRequestReviewSubmittedPayload;
+}) {
+  const enterprise = await getEnterpriseClient([
+    payload.repository.owner.login,
+  ]); // Check enterprise status first
+  if (enterprise) {
+    return await getInstallation(
+      payload.installation?.id as number,
+      "2100-01-01"
+    ); // Enterprise clients bypass quota
+  }
+
+  const subscription = await getSubscriptionDetails(
+    octokit,
+    payload.repository.owner.login
+  );
+
+  return await getInstallation(
+    payload.installation?.id as number,
+    subscription?.renewalDate as string
+  ); // Fetches or creates usage doc
+}
+
 /**
  * Checks if the account has exceeded their monthly PR quota and notifies if necessary.
  * Returns true if the quota check passes, false otherwise.
@@ -193,11 +225,13 @@ export async function checkQuotaAndNotify(
   payload: IssuesLabeledPayload,
   installationId: number,
   ownerLogin: string
-): Promise<boolean> {
-  console.log(`Looking for login for ${ownerLogin}`);
+): Promise<Installation | null> {
   const enterprise = await getEnterpriseClient([ownerLogin]); // Check enterprise status first
   if (enterprise) {
-    return true; // Enterprise clients bypass quota
+    return await getInstallation(
+      payload.installation?.id as number,
+      "2100-01-01"
+    ); // Enterprise clients bypass quota
   }
 
   const subscription = await getSubscriptionDetails(octokit, ownerLogin);
@@ -228,26 +262,30 @@ export async function checkQuotaAndNotify(
         // Continue even if label removal fails
       }
     }
-    return false;
+    return null;
   }
 
-  const usageData = await getInstallation(
+  const installation = await getInstallation(
     installationId,
     subscription.renewalDate
   ); // Fetches or creates usage doc
 
   const prCount =
-    usageData?.pullRequests?.reduce(
+    installation?.pullRequests?.reduce(
       (tot, pr) => tot + Math.ceil(pr.cost / 0.25),
       0
     ) || 0;
 
   if (prCount >= subscription.monthlyPrLimit) {
-    await createQuotaExceededComment(octokit, payload, usageData?.renewalDate);
-    return false; // Quota exceeded
+    await createQuotaExceededComment(
+      octokit,
+      payload,
+      installation?.renewalDate
+    );
+    return null; // Quota exceeded
   }
 
-  return true; // Quota check passed
+  return installation; // Quota check passed
 }
 
 /**
