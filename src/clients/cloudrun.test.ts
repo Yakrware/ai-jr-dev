@@ -139,7 +139,7 @@ describe("runCloudRunJob", () => {
           env: [
             {
               name: "PROMPT",
-              value: `\"this\" should be escaped so we can't escape`,
+              value: `\\\"this\\\" should be escaped so we can't escape`,
             },
             { name: "REPO_NAME", value: expectedCloneUrlWithToken },
             { name: "BRANCH_NAME", value: mockParams.branchName },
