@@ -395,7 +395,6 @@ export async function ensureLabelExists(
   repo: string
 ): Promise<void> {
   try {
-    console.log(`Attempting to create label "${AI_JR_DEV_LABEL_NAME}" in ${owner}/${repo}`);
     await octokit.rest.issues.createLabel({
       owner,
       repo,
@@ -403,16 +402,12 @@ export async function ensureLabelExists(
       color: AI_JR_DEV_LABEL_COLOR,
       description: AI_JR_DEV_LABEL_DESCRIPTION,
     });
-    console.log(`Label "${AI_JR_DEV_LABEL_NAME}" created successfully in ${owner}/${repo}.`);
   } catch (error: any) {
     // Check if the error is because the label already exists (HTTP 422)
     if (
       error.status === 422 &&
       error.response?.data?.errors?.[0]?.code === "already_exists"
     ) {
-      console.log(
-        `Label "${AI_JR_DEV_LABEL_NAME}" already exists in ${owner}/${repo}.`
-      );
       // Label already exists, which is fine.
     } else {
       // Log other errors
@@ -483,10 +478,6 @@ export async function closeIssueForMergedPr(
       issue_number: issueNumber,
       state: "closed",
     });
-
-    console.log(
-      `Closed issue #${issueNumber} for merged PR #${payload.pull_request.number}`
-    );
   } catch (error) {
     console.error(
       `Failed to close issue #${issueNumber} for PR #${payload.pull_request.number}:`,

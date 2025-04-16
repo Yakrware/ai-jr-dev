@@ -22,8 +22,6 @@ export async function handleInstallationCreated({
   payload: InstallationCreatedPayload;
   octokit: Octokit;
 }): Promise<void> {
-  console.log("Handling installation.created event...");
-
   // The 'installation.created' event can include multiple repositories
   // if the user installs the app on multiple repos at once, or potentially
   // a single 'repository' object if installed on just one (less common).
@@ -40,7 +38,6 @@ export async function handleInstallationCreated({
   }
 
   const installationId = payload.installation.id;
-  console.log(`Processing installation ID: ${installationId}`);
 
   // The octokit instance passed to the handler is already authenticated
   // for the specific installation that triggered the event.
@@ -68,7 +65,6 @@ export async function handleInstallationCreated({
       continue; // Skip this repo if owner is missing
     }
 
-    console.log(`Ensuring labels exist for repository: ${owner}/${repoName}`);
     try {
       // Ensure "ai-jr-dev" label exists
       await ensureLabelExists(octokit, owner, repoName);
@@ -79,6 +75,4 @@ export async function handleInstallationCreated({
       );
     }
   }
-
-  console.log("Finished processing installation.created event.");
 }
