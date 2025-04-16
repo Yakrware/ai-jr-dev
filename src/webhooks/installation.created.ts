@@ -49,8 +49,15 @@ export async function handleInstallationCreated({
 
   for (const repo of repositories) {
     // The owner login is available in the installation account details
-    const owner = payload.installation.account.login;
+    const owner = payload.installation.account?.login;
     const repoName = repo.name;
+
+    if (!owner) {
+      console.error(
+        `Could not determine owner for repository ${repo.name}. Skipping label creation.`
+      );
+      continue; // Skip this repo if owner is missing
+    }
 
     console.log(`Ensuring labels exist for repository: ${owner}/${repoName}`);
     try {
@@ -59,9 +66,7 @@ export async function handleInstallationCreated({
         octokit,
         owner,
         repoName,
-        AI_JR_DEV_LABEL_NAME,
-        AI_JR_DEV_LABEL_COLOR,
-        "Assign this issue to AI Jr Dev" // Description for ai-jr-dev
+        AI_JR_DEV_LABEL_NAME
       );
     } catch (error) {
       // Error is already logged within ensureLabelExists

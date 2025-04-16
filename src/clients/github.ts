@@ -14,7 +14,7 @@ type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">;
 type PullRequestReviewSubmittedPayload =
   WebhookEventDefinition<"pull-request-review-submitted">;
 type PullRequestClosedPayload = WebhookEventDefinition<"pull-request-closed">;
-type InstallationCreatedPayload = WebhookEventDefinition<"installation.created">; // Add this type
+type InstallationCreatedPayload = WebhookEventDefinition<"installation-created">; // Add this type
 
 // Subscription interface
 export interface Subscription {
@@ -389,10 +389,22 @@ export async function ensureLabelExists(
   octokit: Octokit,
   owner: string,
   repo: string,
-  labelName: string,
-  labelColor: string,
-  labelDescription: string
+  labelName: string
 ): Promise<void> {
+  let labelColor: string;
+  let labelDescription: string;
+
+  // Determine color and description based on the label name
+  if (labelName === AI_JR_DEV_LABEL_NAME) {
+    labelColor = AI_JR_DEV_LABEL_COLOR;
+    labelDescription = "Assign this issue to AI Jr Dev";
+  } else {
+    // Default or handle other labels if necessary
+    console.warn(`No predefined color/description for label: ${labelName}`);
+    // Provide some defaults or throw an error if unexpected labels are passed
+    labelColor = "ededed"; // Default grey
+    labelDescription = ""; // Default empty description
+  }
   try {
     console.log(`Attempting to create label "${labelName}" in ${owner}/${repo}`);
     await octokit.rest.issues.createLabel({
