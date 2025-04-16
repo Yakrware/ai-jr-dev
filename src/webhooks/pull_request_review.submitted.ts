@@ -64,6 +64,7 @@ export async function handlePullRequestReviewSubmitted({
         prompt,
         cloneUrlWithoutToken: payload.repository.clone_url,
         branchName: payload.pull_request.head.ref,
+        defaultBranch: payload.repository.default_branch,
         files,
       };
       let result = await runCloudRunJob(octokit, jobParams);

@@ -59,6 +59,7 @@ export async function handleIssuesLabeled({
         prompt,
         cloneUrlWithoutToken: payload.repository.clone_url,
         branchName: branchName,
+        defaultBranch: payload.repository.default_branch,
       };
 
       let result = await runCloudRunJob(octokit, jobParams);
