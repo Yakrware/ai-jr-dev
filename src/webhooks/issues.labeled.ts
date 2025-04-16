@@ -6,9 +6,9 @@ import {
   checkQuotaAndNotify,
   hasBranchChanged,
   createWorkingComment,
-  fetchBranch,
   createPullRequest,
   handleIssueError,
+  createBranch,
 } from "../clients/github.js";
 import { addPullRequestToUsage } from "../clients/mongodb.js";
 import { identifyMissingFiles, extractSessionCost } from "../clients/openai.js";
@@ -43,7 +43,7 @@ export async function handleIssuesLabeled({
 
       await createWorkingComment(octokit, payload);
 
-      const branchName = await fetchBranch(octokit, payload);
+      const branchName = await createBranch(octokit, payload);
 
       // Generate prompt using the payload directly
       const prompt = generateIssuePrompt(payload);
@@ -65,11 +65,9 @@ export async function handleIssuesLabeled({
         branchName: branchName,
       });
 
-      console.log(`PR changed: ${changed}`);
       if (!changed) {
         // Analyze the first run's output to see if files were missing
         const files = await identifyMissingFiles(prompt, result);
-        console.log(`Trying again with ${JSON.stringify(files)}`);
         result = await runCloudRunJob(octokit, { ...jobParams, files });
         sessionCost += await extractSessionCost(result);
       }

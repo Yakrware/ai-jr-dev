@@ -85,7 +85,7 @@ export async function hasBranchChanged({
  * Fetches or creates a branch based on the issue details.
  * Returns the branch name.
  */
-export async function fetchBranch(
+export async function createBranch(
   octokit: Octokit,
   payload: IssuesLabeledPayload
 ): Promise<string> {
@@ -94,24 +94,28 @@ export async function fetchBranch(
   )}`;
 
   try {
-    await octokit.rest.repos.getBranch({
+    await octokit.rest.git.deleteRef({
       repo: payload.repository.name,
       owner: payload.repository.owner.login,
-      branch: branchName,
-    });
-  } catch {
-    const defaultBranch = await octokit.rest.repos.getBranch({
-      repo: payload.repository.name,
-      owner: payload.repository.owner.login,
-      branch: payload.repository.default_branch,
-    });
-    await octokit.rest.git.createRef({
-      repo: payload.repository.name,
-      owner: payload.repository.owner.login,
-      sha: defaultBranch.data.commit.sha,
       ref: `refs/heads/${branchName}`,
     });
+  } catch {
+    // We go ahead and delete the ref and then create the branch
+    // In the future, we should consider telling the user we found a branch
+    // and asking them if they should delete it.
   }
+
+  const defaultBranch = await octokit.rest.repos.getBranch({
+    repo: payload.repository.name,
+    owner: payload.repository.owner.login,
+    branch: payload.repository.default_branch,
+  });
+  await octokit.rest.git.createRef({
+    repo: payload.repository.name,
+    owner: payload.repository.owner.login,
+    sha: defaultBranch.data.commit.sha,
+    ref: `refs/heads/${branchName}`,
+  });
   return branchName;
 }
 

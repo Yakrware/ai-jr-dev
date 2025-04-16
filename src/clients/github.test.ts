@@ -31,7 +31,7 @@ jest.unstable_mockModule("./dist/clients/mongodb.js", () => ({
 const { generatePrDescription } = await import("./openai.js");
 const {
   createWorkingComment,
-  fetchBranch,
+  createBranch,
   createPullRequest,
   createPrLinkedComment,
   handleIssueError,
@@ -57,6 +57,7 @@ const mockOctokit = {
     },
     git: {
       createRef: jest.fn(),
+      deleteRef: jest.fn(),
     },
     pulls: {
       create: jest.fn(),
@@ -179,56 +180,52 @@ describe("GitHub Client Functions", () => {
       mockIssueLabeledPayloadBase.issue.title
     )}`;
 
-    it("should return existing branch name if found", async () => {
+    it("should delete existing branch and return new one", async () => {
+      const defaultBranchSha = "default-branch-sha";
       (
         mockOctokit.rest.repos.getBranch as unknown as jest.Mock
       ).mockResolvedValueOnce({
-        /* mock branch data */
+        data: { commit: { sha: defaultBranchSha } },
       });
-      const branchName = await fetchBranch(
+      const branchName = await createBranch(
         mockOctokit,
         mockIssueLabeledPayloadBase
       );
       expect(branchName).toBe(expectedBranchName);
+      expect(mockOctokit.rest.git.deleteRef).toHaveBeenCalledTimes(1);
       expect(mockOctokit.rest.repos.getBranch).toHaveBeenCalledTimes(1);
       expect(mockOctokit.rest.repos.getBranch).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
-        branch: expectedBranchName,
+        branch: mockIssueLabeledPayloadBase.repository.default_branch,
       });
-      expect(mockOctokit.rest.git.createRef).not.toHaveBeenCalled();
+      expect(mockOctokit.rest.git.createRef).toHaveBeenCalledTimes(1);
     });
 
     it("should create and return new branch name if not found", async () => {
       const defaultBranchSha = "default-branch-sha";
-      (mockOctokit.rest.repos.getBranch as unknown as jest.Mock)
-        .mockRejectedValueOnce(new Error("Not Found")) // First call fails (branch check)
-        .mockResolvedValueOnce({
-          // Second call succeeds (get default branch)
-          data: { commit: { sha: defaultBranchSha } },
-        });
+      (
+        mockOctokit.rest.repos.getBranch as unknown as jest.Mock
+      ).mockResolvedValueOnce({
+        // Second call succeeds (get default branch)
+        data: { commit: { sha: defaultBranchSha } },
+      });
       (
         mockOctokit.rest.git.createRef as unknown as jest.Mock
       ).mockResolvedValueOnce({}); // Mock createRef success
 
-      const branchName = await fetchBranch(
+      const branchName = await createBranch(
         mockOctokit,
         mockIssueLabeledPayloadBase
       );
 
       expect(branchName).toBe(expectedBranchName);
-      expect(mockOctokit.rest.repos.getBranch).toHaveBeenCalledTimes(2);
+      expect(mockOctokit.rest.repos.getBranch).toHaveBeenCalledTimes(1);
       // First call (check for ai branch)
-      expect(mockOctokit.rest.repos.getBranch).toHaveBeenNthCalledWith(1, {
+      expect(mockOctokit.rest.repos.getBranch).toHaveBeenCalledWith({
         owner: "test-owner",
         repo: "test-repo",
-        branch: expectedBranchName,
-      });
-      // Second call (get default branch)
-      expect(mockOctokit.rest.repos.getBranch).toHaveBeenNthCalledWith(2, {
-        owner: "test-owner",
-        repo: "test-repo",
-        branch: "main",
+        branch: mockIssueLabeledPayloadBase.repository.default_branch,
       });
       expect(mockOctokit.rest.git.createRef).toHaveBeenCalledTimes(1);
       expect(mockOctokit.rest.git.createRef).toHaveBeenCalledWith({
