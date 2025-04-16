@@ -93,30 +93,32 @@ export async function createBranch(
     payload.issue.title
   )}`;
 
-  try {
-    await octokit.rest.git.deleteRef({
-      repo: payload.repository.name,
-      owner: payload.repository.owner.login,
-      ref: `refs/heads/${branchName}`,
-    });
-  } catch (e) {
-    console.log(`Error deleting ref ${JSON.stringify(e)}`);
-    // We go ahead and delete the ref and then create the branch
-    // In the future, we should consider telling the user we found a branch
-    // and asking them if they should delete it.
-  }
-
   const defaultBranch = await octokit.rest.repos.getBranch({
     repo: payload.repository.name,
     owner: payload.repository.owner.login,
     branch: payload.repository.default_branch,
   });
-  await octokit.rest.git.createRef({
-    repo: payload.repository.name,
-    owner: payload.repository.owner.login,
-    sha: defaultBranch.data.commit.sha,
-    ref: `refs/heads/${branchName}`,
-  });
+  try {
+    await octokit.rest.repos.getBranch({
+      repo: payload.repository.name,
+      owner: payload.repository.owner.login,
+      branch: branchName,
+    });
+    await octokit.rest.git.updateRef({
+      repo: payload.repository.name,
+      owner: payload.repository.owner.login,
+      sha: defaultBranch.data.commit.sha,
+      ref: `refs/heads/${branchName}`,
+      force: true,
+    });
+  } catch {
+    await octokit.rest.git.createRef({
+      repo: payload.repository.name,
+      owner: payload.repository.owner.login,
+      sha: defaultBranch.data.commit.sha,
+      ref: `refs/heads/${branchName}`,
+    });
+  }
   return branchName;
 }
 

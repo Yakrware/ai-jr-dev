@@ -57,7 +57,7 @@ const mockOctokit = {
     },
     git: {
       createRef: jest.fn(),
-      deleteRef: jest.fn(),
+      updateRef: jest.fn(),
     },
     pulls: {
       create: jest.fn(),
@@ -180,36 +180,42 @@ describe("GitHub Client Functions", () => {
       mockIssueLabeledPayloadBase.issue.title
     )}`;
 
-    it("should delete existing branch and return new one", async () => {
+    it("should return existing branch name if found", async () => {
       const defaultBranchSha = "default-branch-sha";
-      (
-        mockOctokit.rest.repos.getBranch as unknown as jest.Mock
-      ).mockResolvedValueOnce({
-        data: { commit: { sha: defaultBranchSha } },
-      });
+      (mockOctokit.rest.repos.getBranch as unknown as jest.Mock)
+        .mockResolvedValueOnce({
+          data: { commit: { sha: defaultBranchSha } },
+        })
+        .mockResolvedValueOnce({
+          /* mock branch data */
+        });
       const branchName = await createBranch(
         mockOctokit,
         mockIssueLabeledPayloadBase
       );
       expect(branchName).toBe(expectedBranchName);
-      expect(mockOctokit.rest.git.deleteRef).toHaveBeenCalledTimes(1);
-      expect(mockOctokit.rest.repos.getBranch).toHaveBeenCalledTimes(1);
-      expect(mockOctokit.rest.repos.getBranch).toHaveBeenCalledWith({
+      expect(mockOctokit.rest.repos.getBranch).toHaveBeenCalledTimes(2);
+      expect(mockOctokit.rest.repos.getBranch).toHaveBeenNthCalledWith(1, {
         owner: "test-owner",
         repo: "test-repo",
-        branch: mockIssueLabeledPayloadBase.repository.default_branch,
+        branch: "main",
       });
-      expect(mockOctokit.rest.git.createRef).toHaveBeenCalledTimes(1);
+      expect(mockOctokit.rest.repos.getBranch).toHaveBeenNthCalledWith(2, {
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: expectedBranchName,
+      });
+      expect(mockOctokit.rest.git.updateRef).toHaveBeenCalledTimes(1);
+      expect(mockOctokit.rest.git.createRef).not.toHaveBeenCalled();
     });
 
     it("should create and return new branch name if not found", async () => {
       const defaultBranchSha = "default-branch-sha";
-      (
-        mockOctokit.rest.repos.getBranch as unknown as jest.Mock
-      ).mockResolvedValueOnce({
-        // Second call succeeds (get default branch)
-        data: { commit: { sha: defaultBranchSha } },
-      });
+      (mockOctokit.rest.repos.getBranch as unknown as jest.Mock)
+        .mockResolvedValueOnce({
+          data: { commit: { sha: defaultBranchSha } },
+        })
+        .mockRejectedValueOnce(new Error("Not Found"));
       (
         mockOctokit.rest.git.createRef as unknown as jest.Mock
       ).mockResolvedValueOnce({}); // Mock createRef success
@@ -220,12 +226,16 @@ describe("GitHub Client Functions", () => {
       );
 
       expect(branchName).toBe(expectedBranchName);
-      expect(mockOctokit.rest.repos.getBranch).toHaveBeenCalledTimes(1);
-      // First call (check for ai branch)
-      expect(mockOctokit.rest.repos.getBranch).toHaveBeenCalledWith({
+      expect(mockOctokit.rest.repos.getBranch).toHaveBeenCalledTimes(2);
+      expect(mockOctokit.rest.repos.getBranch).toHaveBeenNthCalledWith(1, {
         owner: "test-owner",
         repo: "test-repo",
-        branch: mockIssueLabeledPayloadBase.repository.default_branch,
+        branch: "main",
+      });
+      expect(mockOctokit.rest.repos.getBranch).toHaveBeenNthCalledWith(2, {
+        owner: "test-owner",
+        repo: "test-repo",
+        branch: expectedBranchName,
       });
       expect(mockOctokit.rest.git.createRef).toHaveBeenCalledTimes(1);
       expect(mockOctokit.rest.git.createRef).toHaveBeenCalledWith({
