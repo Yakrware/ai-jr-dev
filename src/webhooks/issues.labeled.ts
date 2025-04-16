@@ -65,6 +65,7 @@ export async function handleIssuesLabeled({
         branchName: branchName,
       });
 
+      console.log(`PR changed: ${changed}`);
       if (!changed) {
         // Analyze the first run's output to see if files were missing
         const files = await identifyMissingFiles(prompt, result);
