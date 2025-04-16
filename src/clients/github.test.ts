@@ -1,6 +1,7 @@
 import { Octokit } from "octokit";
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 import { kebabCase } from "../utilities.js"; // Assuming kebabCase is used internally
+import { addPromotionUser, getPromotionCount } from "./mongodb.js";
 
 // --- Mocks ---
 
@@ -23,6 +24,9 @@ jest.unstable_mockModule("./dist/clients/mongodb.js", () => ({
     installationId: 5,
     renewalDate: "2025-01-01T10:10:20Z",
   }),
+  addPromotionUser: jest.fn(),
+  getPromotionCount: jest.fn(),
+  findPromotionUser: jest.fn(),
   // Mock other exports from openai.js if they are used elsewhere in the test file
   // identifyMissingFiles: jest.fn().mockResolvedValue([]),
 }));
