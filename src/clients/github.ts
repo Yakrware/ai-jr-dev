@@ -6,6 +6,8 @@ import {
   getEnterpriseClient,
   getInstallation,
   Installation,
+  getPromotionCount,
+  addPromotionUser,
 } from "./mongodb.js";
 
 // Type definitions for payloads used in this client
@@ -227,36 +229,62 @@ export async function getInstallationFromOwner({
 
 /**
  * Checks if the account has exceeded their monthly PR quota and notifies if necessary.
- * Returns true if the quota check passes, false otherwise.
+ * Checks for enterprise status and a "First 100 Free" promotion if no paid subscription is found.
+ * Returns the Installation object if the quota check passes, null otherwise.
  */
 export async function checkQuotaAndNotify(
   octokit: Octokit,
   payload: IssuesLabeledPayload,
   installationId: number,
   ownerLogin: string
-): Promise<Installation | null> {
+): Promise<Installation | null> { // Ensure return type is Installation | null
   const enterprise = await getEnterpriseClient([ownerLogin]); // Check enterprise status first
   if (enterprise) {
-    return await getInstallation(
-      payload.installation?.id as number,
-      "2100-01-01"
-    ); // Enterprise clients bypass quota
+    console.log(`Enterprise client ${ownerLogin} detected, bypassing quota.`);
+    // For enterprise, we still need an Installation object, using a far-future date
+    return await getInstallation(installationId, "2100-01-01");
   }
 
   let subscription = await getSubscriptionDetails(octokit, ownerLogin);
+  let isPromotionUser = false; // Flag to track if user is on the free promotion
 
+  // If no paid subscription found, check for the "First 100 Free" promotion
   if (!subscription) {
-    // the first 100 users get 5 total PRs
+    try {
+      const promotionCount = await getPromotionCount();
+      console.log(`Promotion count: ${promotionCount}. Checking for ${ownerLogin}.`);
+      if (promotionCount < 100) {
+        const addResult = await addPromotionUser(ownerLogin);
+        // Check if the user was newly added (upserted) or already existed (matched)
+        if (addResult.upsertedCount > 0 || addResult.matchedCount > 0) {
+          console.log(`User ${ownerLogin} qualifies for/is on the 'First 100 Free' promotion.`);
+          subscription = {
+            monthlyPrLimit: 5, // Free tier limit
+            renewalDate: "First 100 Free", // Special identifier
+          };
+          isPromotionUser = true;
+        } else {
+          console.warn(`Promotion count is ${promotionCount}, but failed to add/find ${ownerLogin}. Proceeding without promotion.`);
+          // Potentially handle error case if addPromotionUser fails unexpectedly but reports 0 matched/upserted
+        }
+      } else {
+        console.log(`Promotion limit (100) reached. User ${ownerLogin} does not qualify.`);
+      }
+    } catch (promoError) {
+        console.error(`Error checking or adding user to promotion: ${promoError}`);
+        // Continue without promotion if there's an error during the check
+    }
   }
 
-  // Note: We might not need isActive check if getSubscriptionDetails handles it by returning 0 limit
+  // If still no subscription (neither paid nor promotional), notify and exit
   if (!subscription) {
-    // create a comment that says we couldn't find an active subscription
+    console.log(`No active subscription or promotion found for ${ownerLogin}.`);
+    // Create a comment indicating no subscription found
     await octokit.rest.issues.createComment({
       owner: payload.repository.owner.login,
       repo: payload.repository.name,
       issue_number: payload.issue.number,
-      body: "⚠️ **Subscription Not Found**\n\nI couldn't find an active subscription for your account. Please ensure you have an active subscription or start a new one to use AI features.",
+      body: "⚠️ **Subscription Not Found**\n\nI couldn't find an active subscription or promotional offer for your account. Please ensure you have an active subscription or visit our marketplace page to start one.",
     });
     // Remove the AI label as we cannot proceed
     if (payload.label?.name) {
@@ -268,74 +296,90 @@ export async function checkQuotaAndNotify(
           name: payload.label.name,
         });
       } catch (labelError) {
-        console.error(
-          `Failed to remove label '${payload.label.name}' after subscription check failed:`,
-          labelError
-        );
-        // Continue even if label removal fails
+        console.error(`Failed to remove label '${payload.label.name}' after subscription check failed:`, labelError);
       }
     }
-    return null;
+    return null; // No subscription or promotion
   }
 
+  // Fetch or create installation usage data using the correct renewalDate (could be ISO string or "First 100 Free")
   const installation = await getInstallation(
     installationId,
     subscription.renewalDate
-  ); // Fetches or creates usage doc
+  );
 
-  const prCount =
-    installation?.pullRequests?.reduce(
-      (tot, pr) => tot + Math.ceil(pr.cost / 0.25),
-      0
-    ) || 0;
+  // Calculate current usage based on the number of PRs recorded for this period
+  // Note: Adjust cost calculation if needed, here we just count PRs for simplicity matching the promo limit
+  const prCount = installation?.pullRequests?.length || 0;
 
+  console.log(
+    `Usage check for ${ownerLogin} (Install ID: ${installationId}, Period Key: ${subscription.renewalDate}): ${prCount} PRs used / ${subscription.monthlyPrLimit} limit.`
+  );
+
+  // Check if quota is exceeded
   if (prCount >= subscription.monthlyPrLimit) {
+    console.log(`Quota exceeded for ${ownerLogin}. Limit: ${subscription.monthlyPrLimit}, Used: ${prCount}.`);
     await createQuotaExceededComment(
       octokit,
       payload,
-      installation?.renewalDate
+      subscription.renewalDate // Pass the specific renewal date or "First 100 Free"
     );
     return null; // Quota exceeded
   }
 
-  return installation; // Quota check passed
+  console.log(`Quota check passed for ${ownerLogin}.`);
+  return installation; // Quota check passed, return the installation object
 }
 
 /**
  * Creates a comment on the issue explaining that the quota has been exceeded.
+ * Handles both regular renewal dates and the "First 100 Free" promotion identifier.
  */
 export async function createQuotaExceededComment(
   octokit: Octokit,
   payload: IssuesLabeledPayload,
-  renewalDate: string | undefined
+  renewalDate: string | undefined // Can be ISO date string, "First 100 Free", or undefined
 ): Promise<void> {
-  const formattedDate =
-    renewalDate &&
-    new Date(renewalDate).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+  let dateInfo = "";
+  if (renewalDate && renewalDate === "First 100 Free") {
+    dateInfo = `You are currently using the 'First 100 Free' promotional offer which includes 5 free PRs. Please consider upgrading to a paid plan for continued use.`;
+  } else if (renewalDate) {
+    try {
+      const formattedDate = new Date(renewalDate).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      dateInfo = `Your quota will reset on ${formattedDate}.\n\nPlease try again after that date, or consider upgrading your subscription for a higher limit.`;
+    } catch (e) {
+      console.error(`Error formatting renewal date '${renewalDate}':`, e);
+      dateInfo = `Please check your subscription details for your quota reset date or consider upgrading your plan.`; // Fallback message
+    }
+  } else {
+    // Case where renewalDate is undefined (should ideally not happen if subscription exists, but handle defensively)
+     dateInfo = `Please check your subscription details or consider upgrading your plan.`;
+  }
+
 
   await octokit.rest.issues.createComment({
     owner: payload.repository.owner.login,
     repo: payload.repository.name,
     issue_number: payload.issue.number,
-    body: `⚠️ **Monthly AI PR Quota Exceeded**\n\nI'm sorry, but you've reached your monthly limit for AI-generated pull requests. ${
-      formattedDate
-        ? `Your quota will reset on ${formattedDate}.\n\nPlease try again after that date, or consider upgrading your subscription for a higher limit.`
-        : `Please consider renewing your subscription.`
-    }`,
+    body: `⚠️ **Monthly AI PR Quota Exceeded**\n\nI'm sorry, but you've reached your monthly limit for AI-generated pull requests. ${dateInfo}`,
   });
 
   // Remove the AI label to indicate we're not processing this
   if (payload.label?.name) {
-    await octokit.rest.issues.removeLabel({
-      owner: payload.repository.owner.login,
-      repo: payload.repository.name,
-      issue_number: payload.issue.number,
-      name: payload.label.name,
-    });
+    try {
+        await octokit.rest.issues.removeLabel({
+          owner: payload.repository.owner.login,
+          repo: payload.repository.name,
+          issue_number: payload.issue.number,
+          name: payload.label.name,
+        });
+    } catch (labelError) {
+        console.error(`Failed to remove label '${payload.label.name}' after quota exceeded:`, labelError);
+    }
   }
 }
 
