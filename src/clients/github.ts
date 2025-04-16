@@ -111,7 +111,8 @@ export async function createBranch(
       ref: `refs/heads/${branchName}`,
       force: true,
     });
-  } catch {
+  } catch (e) {
+    console.log(`Branch Error: ${e}`);
     await octokit.rest.git.createRef({
       repo: payload.repository.name,
       owner: payload.repository.owner.login,
