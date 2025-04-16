@@ -74,10 +74,6 @@ export async function hasBranchChanged({
 
     return branchSha !== defaultBranchSha;
   } catch (error) {
-    console.error(
-      `Error comparing branches ${branchName} and ${defaultBranchName}:`,
-      error
-    );
     // If we can't compare, assume no change or handle error as needed.
     // Returning false might prevent unnecessary PRs if something is wrong.
     return false;
@@ -144,7 +140,6 @@ export async function createPullRequest(
     // Generate PR description from job output
     prBody = await generatePrDescription(jobOutput);
   } catch (error) {
-    console.error("Failed to generate PR description:", error);
     // Use the default body defined above
   }
 
@@ -242,7 +237,6 @@ export async function checkQuotaAndNotify(
   // Ensure return type is Installation | null
   const enterprise = await getEnterpriseClient([ownerLogin]); // Check enterprise status first
   if (enterprise) {
-    console.log(`Enterprise client ${ownerLogin} detected, bypassing quota.`);
     // For enterprise, we still need an Installation object, using a far-future date
     return await getInstallation(installationId, "2100-01-01");
   }
@@ -268,16 +262,12 @@ export async function checkQuotaAndNotify(
         };
       }
     } catch (promoError) {
-      console.error(
-        `Error checking or adding user to promotion: ${promoError}`
-      );
       // Continue without promotion if there's an error during the check
     }
   }
 
   // If still no subscription (neither paid nor promotional), notify and exit
   if (!subscription) {
-    console.log(`No active subscription or promotion found for ${ownerLogin}.`);
     // Create a comment indicating no subscription found
     await octokit.rest.issues.createComment({
       owner: payload.repository.owner.login,
@@ -295,10 +285,7 @@ export async function checkQuotaAndNotify(
           name: payload.label.name,
         });
       } catch (labelError) {
-        console.error(
-          `Failed to remove label '${payload.label.name}' after subscription check failed:`,
-          labelError
-        );
+        // Failed to remove label after subscription check failed
       }
     }
     return null; // No subscription or promotion
@@ -318,15 +305,8 @@ export async function checkQuotaAndNotify(
       0
     ) || 0;
 
-  console.log(
-    `Usage check for ${ownerLogin} (Install ID: ${installationId}, Period Key: ${subscription.renewalDate}): ${prCount} PRs used / ${subscription.monthlyPrLimit} limit.`
-  );
-
   // Check if quota is exceeded
   if (prCount >= subscription.monthlyPrLimit) {
-    console.log(
-      `Quota exceeded for ${ownerLogin}. Limit: ${subscription.monthlyPrLimit}, Used: ${prCount}.`
-    );
     await createQuotaExceededComment(
       octokit,
       payload,
@@ -335,7 +315,6 @@ export async function checkQuotaAndNotify(
     return null; // Quota exceeded
   }
 
-  console.log(`Quota check passed for ${ownerLogin}.`);
   return installation; // Quota check passed, return the installation object
 }
 
@@ -360,7 +339,6 @@ export async function createQuotaExceededComment(
       });
       dateInfo = `Your quota will reset on ${formattedDate}.\n\nPlease try again after that date, or consider upgrading your subscription for a higher limit.`;
     } catch (e) {
-      console.error(`Error formatting renewal date '${renewalDate}':`, e);
       dateInfo = `Please check your subscription details for your quota reset date or consider upgrading your plan.`; // Fallback message
     }
   } else {
@@ -385,10 +363,7 @@ export async function createQuotaExceededComment(
         name: payload.label.name,
       });
     } catch (labelError) {
-      console.error(
-        `Failed to remove label '${payload.label.name}' after quota exceeded:`,
-        labelError
-      );
+      // Failed to remove label after quota exceeded
     }
   }
 }
@@ -417,7 +392,6 @@ export async function handleIssueError(
   payload: IssuesLabeledPayload,
   error: any
 ): Promise<void> {
-  console.error("Error processing issue label event:", JSON.stringify(error));
   try {
     await octokit.rest.issues.createComment({
       owner: payload.repository.owner.login,
@@ -434,7 +408,7 @@ export async function handleIssueError(
       });
     }
   } catch (e) {
-    console.error("Failed to handle issue error gracefully:", e);
+    // Failed to handle issue error gracefully
   }
 }
 
@@ -453,9 +427,7 @@ export async function resetReviewRequest(
       reviewers: [payload.review.user.login],
     });
   } else {
-    console.warn(
-      `Could not re-request review for PR #${payload.pull_request.number} as reviewer login is missing.`
-    );
+    // Could not re-request review as reviewer login is missing
   }
 }
 
@@ -471,9 +443,7 @@ export async function closeIssueForMergedPr(
   const match = branchName.match(/^ai-jr-dev\/(\d+)-/);
 
   if (!match || !match[1]) {
-    console.warn(
-      `PR #${payload.pull_request.number}: Could not extract issue number from branch name: ${branchName}. Skipping issue close.`
-    );
+    // Could not extract issue number from branch name. Skipping issue close.
     return;
   }
 
@@ -496,14 +466,8 @@ export async function closeIssueForMergedPr(
       state: "closed",
     });
 
-    console.log(
-      `Closed issue #${issueNumber} for merged PR #${payload.pull_request.number}`
-    );
+    // Closed issue for merged PR
   } catch (error) {
-    console.error(
-      `Failed to close issue #${issueNumber} for PR #${payload.pull_request.number}:`,
-      error
-    );
     // Optionally, add a comment to the PR or issue indicating the failure to close
     try {
       await octokit.rest.issues.createComment({
@@ -513,7 +477,7 @@ export async function closeIssueForMergedPr(
         body: `Attempted to close this issue after PR #${payload.pull_request.number} was merged, but encountered an error. Please close manually if appropriate.`,
       });
     } catch (commentError) {
-      console.error("Failed to add error comment to issue:", commentError);
+      // Failed to add error comment to issue
     }
   }
 }
