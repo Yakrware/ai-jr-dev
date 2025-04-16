@@ -65,8 +65,7 @@ export async function handleInstallationCreated({
       await ensureLabelExists(
         octokit,
         owner,
-        repoName,
-        AI_JR_DEV_LABEL_NAME
+        repoName
       );
     } catch (error) {
       // Error is already logged within ensureLabelExists

@@ -7,7 +7,11 @@ import {
   getInstallation,
   Installation,
 } from "./mongodb.js";
-import { AI_JR_DEV_LABEL_NAME, AI_JR_DEV_LABEL_COLOR } from "../constants.js"; // Import all constants
+import { 
+  AI_JR_DEV_LABEL_NAME, 
+  AI_JR_DEV_LABEL_COLOR,
+  AI_JR_DEV_LABEL_DESCRIPTION 
+} from "../constants.js"; // Import all constants
 
 // Type definitions for payloads used in this client
 type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">;
@@ -388,23 +392,11 @@ export async function handleIssueError(
 export async function ensureLabelExists(
   octokit: Octokit,
   owner: string,
-  repo: string,
-  labelName: string
+  repo: string
 ): Promise<void> {
-  let labelColor: string;
-  let labelDescription: string;
-
-  // Determine color and description based on the label name
-  if (labelName === AI_JR_DEV_LABEL_NAME) {
-    labelColor = AI_JR_DEV_LABEL_COLOR;
-    labelDescription = "Assign this issue to AI Jr Dev";
-  } else {
-    // Default or handle other labels if necessary
-    console.warn(`No predefined color/description for label: ${labelName}`);
-    // Provide some defaults or throw an error if unexpected labels are passed
-    labelColor = "ededed"; // Default grey
-    labelDescription = ""; // Default empty description
-  }
+  const labelName = AI_JR_DEV_LABEL_NAME;
+  const labelColor = AI_JR_DEV_LABEL_COLOR;
+  const labelDescription = AI_JR_DEV_LABEL_DESCRIPTION;
   try {
     console.log(`Attempting to create label "${labelName}" in ${owner}/${repo}`);
     await octokit.rest.issues.createLabel({
