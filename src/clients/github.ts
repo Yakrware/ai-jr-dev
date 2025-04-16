@@ -10,12 +10,18 @@ import {
   addPromotionUser,
   findPromotionUser,
 } from "./mongodb.js";
+import { 
+  AI_JR_DEV_LABEL_NAME, 
+  AI_JR_DEV_LABEL_COLOR,
+  AI_JR_DEV_LABEL_DESCRIPTION 
+} from "../constants.js"; // Import all constants
 
 // Type definitions for payloads used in this client
 type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">;
 type PullRequestReviewSubmittedPayload =
   WebhookEventDefinition<"pull-request-review-submitted">;
 type PullRequestClosedPayload = WebhookEventDefinition<"pull-request-closed">;
+type InstallationCreatedPayload = WebhookEventDefinition<"installation-created">; // Add this type
 
 // Subscription interface
 export interface Subscription {
@@ -425,6 +431,41 @@ export async function handleIssueError(
     console.error("Failed to handle issue error gracefully:", e);
   }
 }
+
+/**
+ * Creates a specific label in a repository if it doesn't exist.
+ */
+export async function ensureLabelExists(
+  octokit: Octokit,
+  owner: string,
+  repo: string
+): Promise<void> {
+  try {
+    await octokit.rest.issues.createLabel({
+      owner,
+      repo,
+      name: AI_JR_DEV_LABEL_NAME,
+      color: AI_JR_DEV_LABEL_COLOR,
+      description: AI_JR_DEV_LABEL_DESCRIPTION,
+    });
+  } catch (error: any) {
+    // Check if the error is because the label already exists (HTTP 422)
+    if (
+      error.status === 422 &&
+      error.response?.data?.errors?.[0]?.code === "already_exists"
+    ) {
+      // Label already exists, which is fine.
+    } else {
+      // Log other errors
+      console.error(
+        `Failed to create label "${AI_JR_DEV_LABEL_NAME}" in ${owner}/${repo}:`,
+        error
+      );
+      // Re-throw or handle differently if needed, but for now, just log.
+    }
+  }
+}
+
 
 /**
  * Resets the review request status on a Pull Request, typically asking the original reviewer again.
