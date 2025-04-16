@@ -1,15 +1,13 @@
-import { WebhookEventDefinition } from "@octokit/webhooks";
+import { WebhookEventDefinition } from "@octokit/webhooks/types";
 import { Octokit } from "octokit";
 import { ensureLabelExists } from "../clients/github.js";
 import {
-  AIDER_LABEL_NAME,
-  AIDER_LABEL_COLOR,
   AI_JR_DEV_LABEL_NAME,
   AI_JR_DEV_LABEL_COLOR
 } from "../constants.js"; // Import all needed constants
 
 // Define the specific payload type for installation.created event
-type InstallationCreatedPayload = WebhookEventDefinition<"installation.created">;
+type InstallationCreatedPayload = WebhookEventDefinition<"installation-created">;
 
 /**
  * Handles the 'installation.created' event.
@@ -56,16 +54,6 @@ export async function handleInstallationCreated({
 
     console.log(`Ensuring labels exist for repository: ${owner}/${repoName}`);
     try {
-      // Ensure "aider-request" label exists
-      await ensureLabelExists(
-        octokit,
-        owner,
-        repoName,
-        AIDER_LABEL_NAME,
-        AIDER_LABEL_COLOR,
-        "Issue requests for the Aider agent" // Description for aider-request
-      );
-
       // Ensure "ai-jr-dev" label exists
       await ensureLabelExists(
         octokit,

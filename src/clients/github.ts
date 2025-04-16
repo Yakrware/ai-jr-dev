@@ -7,12 +7,7 @@ import {
   getInstallation,
   Installation,
 } from "./mongodb.js";
-import {
-  AIDER_LABEL_NAME,
-  AIDER_LABEL_COLOR,
-  AI_JR_DEV_LABEL_NAME,
-  AI_JR_DEV_LABEL_COLOR
-} from "../constants.js"; // Import all constants
+import { AI_JR_DEV_LABEL_NAME, AI_JR_DEV_LABEL_COLOR } from "../constants.js"; // Import all constants
 
 // Type definitions for payloads used in this client
 type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">;
@@ -429,24 +424,6 @@ export async function ensureLabelExists(
   }
 }
 
-/**
- * Creates the "aider-request" label in a repository if it doesn't exist.
- * @deprecated Use ensureLabelExists instead
- */
-export async function ensureAiderLabelExists(
-  octokit: Octokit,
-  owner: string,
-  repo: string
-): Promise<void> {
-  return ensureLabelExists(
-    octokit,
-    owner,
-    repo,
-    AIDER_LABEL_NAME,
-    AIDER_LABEL_COLOR,
-    "Issue requests for the Aider agent"
-  );
-}
 
 /**
  * Resets the review request status on a Pull Request, typically asking the original reviewer again.
