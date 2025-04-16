@@ -53,7 +53,7 @@ export async function getInstallation(
       installationId,
       renewalDate,
     },
-    { $set: { installationId, renewalDate, pullRequests: [] } },
+    { $set: { installationId, renewalDate } },
     {
       upsert: true,
       returnDocument: "after",
@@ -104,6 +104,51 @@ export async function addPullRequestToUsage(
 }
 
 /**
+ * Adds a new session to an existing pull request
+ */
+export async function addSessionToPullRequest(
+  installationId: number,
+  renewalDate: string,
+  prNumber: number,
+  sessionCost: number
+): Promise<void> {
+  await client.connect();
+  const db = client.db();
+  const collection = db.collection<Installation>("installations");
+
+  const installation = await getInstallation(installationId, renewalDate);
+  if (!installation.pullRequests) installation.pullRequests = [];
+
+  let pr = installation.pullRequests.find((pr) => pr.number === prNumber);
+  if (!pr) {
+    pr = {
+      number: prNumber,
+      created_at: new Date(),
+      cost: sessionCost,
+      sessions: [],
+    };
+    installation.pullRequests.push(pr);
+  }
+  const session = {
+    timestamp: new Date(),
+    cost: sessionCost,
+  };
+  pr.sessions.push(session);
+
+  // Add session to the PR and update total cost
+  await collection.updateOne(
+    {
+      installationId,
+      renewalDate,
+    },
+    {
+      $set: { pullRequests: installation.pullRequests },
+      $inc: { cost: sessionCost },
+    }
+  );
+}
+
+/**
  * Gets the total count of users in the promotion collection.
  */
 export async function getPromotionCount(): Promise<number> {
@@ -141,53 +186,4 @@ export async function addPromotionUser(ownerLogin: string) {
   );
 
   return result; // Return the full result object which contains matchedCount, upsertedCount etc.
-}
-
-/**
- * Adds a new session to an existing pull request
- */
-export async function addSessionToPullRequest(
-  installationId: number,
-  renewalDate: string,
-  prNumber: number,
-  sessionCost: number
-): Promise<void> {
-  await client.connect();
-  const db = client.db();
-  const collection = db.collection<Installation>("installations");
-
-  const installation = await getInstallation(installationId, renewalDate);
-  if (!installation.pullRequests) installation.pullRequests = [];
-  console.log(JSON.stringify(installation));
-
-  let pr = installation.pullRequests.find((pr) => pr.number === prNumber);
-  console.log(JSON.stringify(pr));
-  if (!pr) {
-    pr = {
-      number: prNumber,
-      created_at: new Date(),
-      cost: sessionCost,
-      sessions: [],
-    };
-    installation.pullRequests.push(pr);
-  }
-  const session = {
-    timestamp: new Date(),
-    cost: sessionCost,
-  };
-  pr.sessions.push(session);
-  console.log(JSON.stringify(pr));
-  console.log(JSON.stringify(installation.pullRequests));
-
-  // Add session to the PR and update total cost
-  await collection.updateOne(
-    {
-      installationId,
-      renewalDate,
-    },
-    {
-      $set: { pullRequests: installation.pullRequests },
-      $inc: { cost: sessionCost },
-    }
-  );
 }
