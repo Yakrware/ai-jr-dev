@@ -158,8 +158,10 @@ export async function addSessionToPullRequest(
 
   const installation = await getInstallation(installationId, renewalDate);
   if (!installation.pullRequests) installation.pullRequests = [];
+  console.log(JSON.stringify(installation));
 
   let pr = installation.pullRequests.find((pr) => pr.number === prNumber);
+  console.log(JSON.stringify(pr));
   if (!pr) {
     pr = {
       number: prNumber,
@@ -174,6 +176,8 @@ export async function addSessionToPullRequest(
     cost: sessionCost,
   };
   pr.sessions.push(session);
+  console.log(JSON.stringify(pr));
+  console.log(JSON.stringify(installation.pullRequests));
 
   // Add session to the PR and update total cost
   await collection.updateOne(
@@ -183,6 +187,7 @@ export async function addSessionToPullRequest(
     },
     {
       $set: { pullRequests: installation.pullRequests },
+      $inc: { cost: sessionCost },
     }
   );
 }
