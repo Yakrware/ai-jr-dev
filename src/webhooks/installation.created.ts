@@ -9,7 +9,7 @@ type InstallationCreatedPayload =
 /**
  * Handles the 'installation.created' event.
  * This function iterates through the repositories included in the installation
- * and ensures the "aider-request" label exists in each.
+ * and ensures the "ai-jr-dev" label exists in each.
  *
  * @param {object} context - The event context.
  * @param {InstallationCreatedPayload} context.payload - The webhook payload.
