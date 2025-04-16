@@ -68,6 +68,7 @@ export async function handleIssuesLabeled({
       if (!changed) {
         // Analyze the first run's output to see if files were missing
         const files = await identifyMissingFiles(prompt, result);
+        console.log(`Trying again with ${JSON.stringify(files)}`);
         result = await runCloudRunJob(octokit, { ...jobParams, files });
         sessionCost += await extractSessionCost(result);
       }
