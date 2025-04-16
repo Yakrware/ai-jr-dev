@@ -242,8 +242,6 @@ export async function checkQuotaAndNotify(
   // Ensure return type is Installation | null
   const enterprise = await getEnterpriseClient([ownerLogin]); // Check enterprise status first
   if (enterprise) {
-    console.log(`Enterprise client ${ownerLogin} detected, bypassing quota.`);
-    // For enterprise, we still need an Installation object, using a far-future date
     return await getInstallation(installationId, "2100-01-01");
   }
 
@@ -277,7 +275,6 @@ export async function checkQuotaAndNotify(
 
   // If still no subscription (neither paid nor promotional), notify and exit
   if (!subscription) {
-    console.log(`No active subscription or promotion found for ${ownerLogin}.`);
     // Create a comment indicating no subscription found
     await octokit.rest.issues.createComment({
       owner: payload.repository.owner.login,
@@ -318,15 +315,8 @@ export async function checkQuotaAndNotify(
       0
     ) || 0;
 
-  console.log(
-    `Usage check for ${ownerLogin} (Install ID: ${installationId}, Period Key: ${subscription.renewalDate}): ${prCount} PRs used / ${subscription.monthlyPrLimit} limit.`
-  );
-
   // Check if quota is exceeded
   if (prCount >= subscription.monthlyPrLimit) {
-    console.log(
-      `Quota exceeded for ${ownerLogin}. Limit: ${subscription.monthlyPrLimit}, Used: ${prCount}.`
-    );
     await createQuotaExceededComment(
       octokit,
       payload,
@@ -334,8 +324,6 @@ export async function checkQuotaAndNotify(
     );
     return null; // Quota exceeded
   }
-
-  console.log(`Quota check passed for ${ownerLogin}.`);
   return installation; // Quota check passed, return the installation object
 }
 
@@ -495,10 +483,6 @@ export async function closeIssueForMergedPr(
       issue_number: issueNumber,
       state: "closed",
     });
-
-    console.log(
-      `Closed issue #${issueNumber} for merged PR #${payload.pull_request.number}`
-    );
   } catch (error) {
     console.error(
       `Failed to close issue #${issueNumber} for PR #${payload.pull_request.number}:`,
