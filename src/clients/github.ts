@@ -8,6 +8,7 @@ import {
   Installation,
   getPromotionCount,
   addPromotionUser,
+  findPromotionUser,
 } from "./mongodb.js";
 
 // Type definitions for payloads used in this client
@@ -237,7 +238,8 @@ export async function checkQuotaAndNotify(
   payload: IssuesLabeledPayload,
   installationId: number,
   ownerLogin: string
-): Promise<Installation | null> { // Ensure return type is Installation | null
+): Promise<Installation | null> {
+  // Ensure return type is Installation | null
   const enterprise = await getEnterpriseClient([ownerLogin]); // Check enterprise status first
   if (enterprise) {
     console.log(`Enterprise client ${ownerLogin} detected, bypassing quota.`);
@@ -246,54 +248,30 @@ export async function checkQuotaAndNotify(
   }
 
   let subscription = await getSubscriptionDetails(octokit, ownerLogin);
-  let isPromotionUser = false; // Flag to track if user is on the free promotion
 
   // If no paid subscription found, check for the "First 100 Free" promotion
   if (!subscription) {
     try {
-      const existingPromoUser = await findPromotionUser(ownerLogin); // Check if user already exists
+      let promoUser = await findPromotionUser(ownerLogin); // Check if user already exists
 
-      if (existingPromoUser) {
-        // User already exists in the promotion
-        console.log(`User ${ownerLogin} is already on the 'First 100 Free' promotion.`);
+      if (!promoUser) {
+        const promotionCount = await getPromotionCount();
+        if (promotionCount < 100) {
+          promoUser = await addPromotionUser(ownerLogin);
+        }
+      }
+
+      if (promoUser) {
         subscription = {
           monthlyPrLimit: 5, // Free tier limit
           renewalDate: "First 100 Free", // Special identifier
         };
-        isPromotionUser = true;
-      } else {
-        // User does not exist, check if slots are available
-        const promotionCount = await getPromotionCount();
-        console.log(`Promotion count: ${promotionCount}. Checking eligibility for ${ownerLogin}.`);
-
-        if (promotionCount < 100) {
-          // Slots available, attempt to add the user
-          const addResult = await addPromotionUser(ownerLogin);
-
-          // Check if the user was newly added (upserted) or added concurrently
-          if (addResult.upsertedCount > 0 || addResult.matchedCount > 0) {
-             if (addResult.upsertedCount > 0) {
-                console.log(`User ${ownerLogin} added to the 'First 100 Free' promotion.`);
-             } else {
-                console.log(`User ${ownerLogin} was added to the promotion concurrently or already existed.`);
-             }
-            subscription = {
-              monthlyPrLimit: 5, // Free tier limit
-              renewalDate: "First 100 Free", // Special identifier
-            };
-            isPromotionUser = true;
-          } else {
-            // This case indicates an issue with the upsert operation if count < 100
-            console.warn(`Failed to add or find ${ownerLogin} in promotion despite count < 100. Result:`, addResult);
-          }
-        } else {
-          // No slots available
-          console.log(`Promotion limit (100) reached. User ${ownerLogin} does not qualify.`);
-        }
       }
     } catch (promoError) {
-        console.error(`Error checking or adding user to promotion: ${promoError}`);
-        // Continue without promotion if there's an error during the check
+      console.error(
+        `Error checking or adding user to promotion: ${promoError}`
+      );
+      // Continue without promotion if there's an error during the check
     }
   }
 
@@ -317,7 +295,10 @@ export async function checkQuotaAndNotify(
           name: payload.label.name,
         });
       } catch (labelError) {
-        console.error(`Failed to remove label '${payload.label.name}' after subscription check failed:`, labelError);
+        console.error(
+          `Failed to remove label '${payload.label.name}' after subscription check failed:`,
+          labelError
+        );
       }
     }
     return null; // No subscription or promotion
@@ -343,7 +324,9 @@ export async function checkQuotaAndNotify(
 
   // Check if quota is exceeded
   if (prCount >= subscription.monthlyPrLimit) {
-    console.log(`Quota exceeded for ${ownerLogin}. Limit: ${subscription.monthlyPrLimit}, Used: ${prCount}.`);
+    console.log(
+      `Quota exceeded for ${ownerLogin}. Limit: ${subscription.monthlyPrLimit}, Used: ${prCount}.`
+    );
     await createQuotaExceededComment(
       octokit,
       payload,
@@ -382,9 +365,8 @@ export async function createQuotaExceededComment(
     }
   } else {
     // Case where renewalDate is undefined (should ideally not happen if subscription exists, but handle defensively)
-     dateInfo = `Please check your subscription details or consider upgrading your plan.`;
+    dateInfo = `Please check your subscription details or consider upgrading your plan.`;
   }
-
 
   await octokit.rest.issues.createComment({
     owner: payload.repository.owner.login,
@@ -396,14 +378,17 @@ export async function createQuotaExceededComment(
   // Remove the AI label to indicate we're not processing this
   if (payload.label?.name) {
     try {
-        await octokit.rest.issues.removeLabel({
-          owner: payload.repository.owner.login,
-          repo: payload.repository.name,
-          issue_number: payload.issue.number,
-          name: payload.label.name,
-        });
+      await octokit.rest.issues.removeLabel({
+        owner: payload.repository.owner.login,
+        repo: payload.repository.name,
+        issue_number: payload.issue.number,
+        name: payload.label.name,
+      });
     } catch (labelError) {
-        console.error(`Failed to remove label '${payload.label.name}' after quota exceeded:`, labelError);
+      console.error(
+        `Failed to remove label '${payload.label.name}' after quota exceeded:`,
+        labelError
+      );
     }
   }
 }
