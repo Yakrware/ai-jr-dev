@@ -7,12 +7,14 @@ import {
   getInstallation,
   Installation,
 } from "./mongodb.js";
+import { AIDER_LABEL_NAME, AIDER_LABEL_COLOR } from "../constants.js"; // Import new constants
 
 // Type definitions for payloads used in this client
 type IssuesLabeledPayload = WebhookEventDefinition<"issues-labeled">;
 type PullRequestReviewSubmittedPayload =
   WebhookEventDefinition<"pull-request-review-submitted">;
 type PullRequestClosedPayload = WebhookEventDefinition<"pull-request-closed">;
+type InstallationCreatedPayload = WebhookEventDefinition<"installation.created">; // Add this type
 
 // Subscription interface
 export interface Subscription {
@@ -377,6 +379,45 @@ export async function handleIssueError(
     }
   } catch (e) {
     console.error("Failed to handle issue error gracefully:", e);
+  }
+}
+
+/**
+ * Creates the "aider-request" label in a repository if it doesn't exist.
+ */
+export async function ensureAiderLabelExists(
+  octokit: Octokit,
+  owner: string,
+  repo: string
+): Promise<void> {
+  try {
+    console.log(`Attempting to create label "${AIDER_LABEL_NAME}" in ${owner}/${repo}`);
+    await octokit.rest.issues.createLabel({
+      owner,
+      repo,
+      name: AIDER_LABEL_NAME,
+      color: AIDER_LABEL_COLOR,
+      description: "Issue requests for the Aider agent",
+    });
+    console.log(`Label "${AIDER_LABEL_NAME}" created successfully in ${owner}/${repo}.`);
+  } catch (error: any) {
+    // Check if the error is because the label already exists (HTTP 422)
+    if (
+      error.status === 422 &&
+      error.response?.data?.errors?.[0]?.code === "already_exists"
+    ) {
+      console.log(
+        `Label "${AIDER_LABEL_NAME}" already exists in ${owner}/${repo}.`
+      );
+      // Label already exists, which is fine.
+    } else {
+      // Log other errors
+      console.error(
+        `Failed to create label "${AIDER_LABEL_NAME}" in ${owner}/${repo}:`,
+        error
+      );
+      // Re-throw or handle differently if needed, but for now, just log.
+    }
   }
 }
 
