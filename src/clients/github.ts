@@ -394,19 +394,16 @@ export async function ensureLabelExists(
   owner: string,
   repo: string
 ): Promise<void> {
-  const labelName = AI_JR_DEV_LABEL_NAME;
-  const labelColor = AI_JR_DEV_LABEL_COLOR;
-  const labelDescription = AI_JR_DEV_LABEL_DESCRIPTION;
   try {
-    console.log(`Attempting to create label "${labelName}" in ${owner}/${repo}`);
+    console.log(`Attempting to create label "${AI_JR_DEV_LABEL_NAME}" in ${owner}/${repo}`);
     await octokit.rest.issues.createLabel({
       owner,
       repo,
-      name: labelName,
-      color: labelColor,
-      description: labelDescription,
+      name: AI_JR_DEV_LABEL_NAME,
+      color: AI_JR_DEV_LABEL_COLOR,
+      description: AI_JR_DEV_LABEL_DESCRIPTION,
     });
-    console.log(`Label "${labelName}" created successfully in ${owner}/${repo}.`);
+    console.log(`Label "${AI_JR_DEV_LABEL_NAME}" created successfully in ${owner}/${repo}.`);
   } catch (error: any) {
     // Check if the error is because the label already exists (HTTP 422)
     if (
@@ -414,13 +411,13 @@ export async function ensureLabelExists(
       error.response?.data?.errors?.[0]?.code === "already_exists"
     ) {
       console.log(
-        `Label "${labelName}" already exists in ${owner}/${repo}.`
+        `Label "${AI_JR_DEV_LABEL_NAME}" already exists in ${owner}/${repo}.`
       );
       // Label already exists, which is fine.
     } else {
       // Log other errors
       console.error(
-        `Failed to create label "${labelName}" in ${owner}/${repo}:`,
+        `Failed to create label "${AI_JR_DEV_LABEL_NAME}" in ${owner}/${repo}:`,
         error
       );
       // Re-throw or handle differently if needed, but for now, just log.
