@@ -76,6 +76,8 @@ export async function addPullRequestToUsage(
   const db = client.db();
   const collection = db.collection<Installation>("installations");
 
+  const installation = await getInstallation(installationId, renewalDate);
+
   // Create new PR record
   const newPr: PullRequest = {
     number: prNumber,
@@ -89,11 +91,14 @@ export async function addPullRequestToUsage(
     ],
   };
 
+  const prs = installation.pullRequests || [];
+  prs.push(newPr);
+
   // Upsert the installation usage record
   await collection.updateOne(
     { installationId, renewalDate },
     {
-      $set: { pull_requests: [newPr] },
+      $set: { pullRequests: prs },
     }
   );
 }
@@ -152,13 +157,23 @@ export async function addSessionToPullRequest(
   const collection = db.collection<Installation>("installations");
 
   const installation = await getInstallation(installationId, renewalDate);
+  if (!installation.pullRequests) installation.pullRequests = [];
 
-  const pr = installation.pullRequests?.find((pr) => pr.number === prNumber);
+  let pr = installation.pullRequests.find((pr) => pr.number === prNumber);
+  if (!pr) {
+    pr = {
+      number: prNumber,
+      created_at: new Date(),
+      cost: sessionCost,
+      sessions: [],
+    };
+    installation.pullRequests.push(pr);
+  }
   const session = {
     timestamp: new Date(),
     cost: sessionCost,
   };
-  pr?.sessions.push(session);
+  pr.sessions.push(session);
 
   // Add session to the PR and update total cost
   await collection.updateOne(
