@@ -251,24 +251,45 @@ export async function checkQuotaAndNotify(
   // If no paid subscription found, check for the "First 100 Free" promotion
   if (!subscription) {
     try {
-      const promotionCount = await getPromotionCount();
-      console.log(`Promotion count: ${promotionCount}. Checking for ${ownerLogin}.`);
-      if (promotionCount < 100) {
-        const addResult = await addPromotionUser(ownerLogin);
-        // Check if the user was newly added (upserted) or already existed (matched)
-        if (addResult.upsertedCount > 0 || addResult.matchedCount > 0) {
-          console.log(`User ${ownerLogin} qualifies for/is on the 'First 100 Free' promotion.`);
-          subscription = {
-            monthlyPrLimit: 5, // Free tier limit
-            renewalDate: "First 100 Free", // Special identifier
-          };
-          isPromotionUser = true;
-        } else {
-          console.warn(`Promotion count is ${promotionCount}, but failed to add/find ${ownerLogin}. Proceeding without promotion.`);
-          // Potentially handle error case if addPromotionUser fails unexpectedly but reports 0 matched/upserted
-        }
+      const existingPromoUser = await findPromotionUser(ownerLogin); // Check if user already exists
+
+      if (existingPromoUser) {
+        // User already exists in the promotion
+        console.log(`User ${ownerLogin} is already on the 'First 100 Free' promotion.`);
+        subscription = {
+          monthlyPrLimit: 5, // Free tier limit
+          renewalDate: "First 100 Free", // Special identifier
+        };
+        isPromotionUser = true;
       } else {
-        console.log(`Promotion limit (100) reached. User ${ownerLogin} does not qualify.`);
+        // User does not exist, check if slots are available
+        const promotionCount = await getPromotionCount();
+        console.log(`Promotion count: ${promotionCount}. Checking eligibility for ${ownerLogin}.`);
+
+        if (promotionCount < 100) {
+          // Slots available, attempt to add the user
+          const addResult = await addPromotionUser(ownerLogin);
+
+          // Check if the user was newly added (upserted) or added concurrently
+          if (addResult.upsertedCount > 0 || addResult.matchedCount > 0) {
+             if (addResult.upsertedCount > 0) {
+                console.log(`User ${ownerLogin} added to the 'First 100 Free' promotion.`);
+             } else {
+                console.log(`User ${ownerLogin} was added to the promotion concurrently or already existed.`);
+             }
+            subscription = {
+              monthlyPrLimit: 5, // Free tier limit
+              renewalDate: "First 100 Free", // Special identifier
+            };
+            isPromotionUser = true;
+          } else {
+            // This case indicates an issue with the upsert operation if count < 100
+            console.warn(`Failed to add or find ${ownerLogin} in promotion despite count < 100. Result:`, addResult);
+          }
+        } else {
+          // No slots available
+          console.log(`Promotion limit (100) reached. User ${ownerLogin} does not qualify.`);
+        }
       }
     } catch (promoError) {
         console.error(`Error checking or adding user to promotion: ${promoError}`);

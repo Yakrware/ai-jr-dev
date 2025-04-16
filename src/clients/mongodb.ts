@@ -109,6 +109,16 @@ export async function getPromotionCount(): Promise<number> {
 }
 
 /**
+ * Finds a user in the promotion collection by ownerLogin.
+ */
+export async function findPromotionUser(ownerLogin: string) {
+  await client.connect();
+  const db = client.db();
+  const collection = db.collection("promotionUsers"); // Assuming collection name
+  return collection.findOne({ ownerLogin: ownerLogin });
+}
+
+/**
  * Adds a user to the promotion collection if they don't already exist.
  * Returns the result of the findOneAndUpdate operation.
  */
