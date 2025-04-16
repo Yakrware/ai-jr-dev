@@ -99,6 +99,36 @@ export async function addPullRequestToUsage(
 }
 
 /**
+ * Gets the total count of users in the promotion collection.
+ */
+export async function getPromotionCount(): Promise<number> {
+  await client.connect();
+  const db = client.db();
+  const collection = db.collection("promotionUsers"); // Assuming collection name
+  return collection.countDocuments();
+}
+
+/**
+ * Adds a user to the promotion collection if they don't already exist.
+ * Returns the result of the findOneAndUpdate operation.
+ */
+export async function addPromotionUser(ownerLogin: string) {
+  await client.connect();
+  const db = client.db();
+  const collection = db.collection("promotionUsers"); // Assuming collection name
+
+  // Use findOneAndUpdate with upsert: true
+  // $setOnInsert ensures fields are only set during insertion
+  const result = await collection.findOneAndUpdate(
+    { ownerLogin: ownerLogin },
+    { $setOnInsert: { ownerLogin: ownerLogin, addedAt: new Date() } },
+    { upsert: true, returnDocument: "after" } // returnDocument option might not be strictly needed here but is good practice
+  );
+
+  return result; // Return the full result object which contains matchedCount, upsertedCount etc.
+}
+
+/**
  * Adds a new session to an existing pull request
  */
 export async function addSessionToPullRequest(
