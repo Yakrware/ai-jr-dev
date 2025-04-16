@@ -99,7 +99,8 @@ export async function createBranch(
       owner: payload.repository.owner.login,
       ref: `refs/heads/${branchName}`,
     });
-  } catch {
+  } catch (e) {
+    console.log(`Error deleting ref ${JSON.stringify(e)}`);
     // We go ahead and delete the ref and then create the branch
     // In the future, we should consider telling the user we found a branch
     // and asking them if they should delete it.
