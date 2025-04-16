@@ -25,7 +25,6 @@ export async function handlePullRequestReviewSubmitted({
 
   const installationId = payload.installation.id; // Get installation ID early
   const prNumber = payload.pull_request.number; // Get PR number early
-  const repoFullName = payload.repository.full_name;
 
   if (
     payload.pull_request.user?.id === APP_USER_ID ||

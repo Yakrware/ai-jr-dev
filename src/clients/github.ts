@@ -108,17 +108,18 @@ export async function createBranch(
       repo: payload.repository.name,
       owner: payload.repository.owner.login,
       sha: defaultBranch.data.commit.sha,
-      ref: `refs/heads/${branchName}`,
+      ref: `heads/${branchName}`,
       force: true,
     });
-  } catch (e) {
-    console.log(`Branch Error: ${e}`);
-    await octokit.rest.git.createRef({
-      repo: payload.repository.name,
-      owner: payload.repository.owner.login,
-      sha: defaultBranch.data.commit.sha,
-      ref: `refs/heads/${branchName}`,
-    });
+  } catch {
+    try {
+      await octokit.rest.git.createRef({
+        repo: payload.repository.name,
+        owner: payload.repository.owner.login,
+        sha: defaultBranch.data.commit.sha,
+        ref: `refs/heads/${branchName}`,
+      });
+    } catch {}
   }
   return branchName;
 }

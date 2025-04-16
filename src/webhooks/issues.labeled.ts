@@ -45,6 +45,12 @@ export async function handleIssuesLabeled({
 
       const branchName = await createBranch(octokit, payload);
 
+      const startBranch = await octokit.rest.repos.getBranch({
+        owner: payload.repository.owner.login,
+        repo: payload.repository.name,
+        branch: branchName,
+      });
+
       // Generate prompt using the payload directly
       const prompt = generateIssuePrompt(payload);
 
@@ -58,14 +64,13 @@ export async function handleIssuesLabeled({
       let result = await runCloudRunJob(octokit, jobParams);
       let sessionCost = await extractSessionCost(result);
 
-      // Check if the job made any commits
-      const changed = await hasBranchChanged({
-        octokit,
-        repository: payload.repository,
-        branchName: branchName,
+      const midBranch = await octokit.rest.repos.getBranch({
+        owner: payload.repository.owner.login,
+        repo: payload.repository.name,
+        branch: branchName,
       });
 
-      if (!changed) {
+      if (startBranch.data.commit.sha === midBranch.data.commit.sha) {
         // Analyze the first run's output to see if files were missing
         const files = await identifyMissingFiles(prompt, result);
         result = await runCloudRunJob(octokit, { ...jobParams, files });
@@ -73,18 +78,16 @@ export async function handleIssuesLabeled({
       }
 
       // Check if changes were made before creating PR
-      const finalBranchChanged = await hasBranchChanged({
-        octokit,
-        repository: payload.repository,
-        branchName: branchName,
+      const endBranch = await octokit.rest.repos.getBranch({
+        owner: payload.repository.owner.login,
+        repo: payload.repository.name,
+        branch: branchName,
       });
 
-      if (!finalBranchChanged) {
-        console.warn(
+      if (startBranch.data.commit.sha === endBranch.data.commit.sha) {
+        throw new Error(
           `Branch ${branchName} still has no changes after all attempts. Aborting PR creation.`
         );
-        // TODO: Add comment explaining no changes were made and remove label?
-        return; // Exit early
       }
 
       // create a pull request summary using the job output
