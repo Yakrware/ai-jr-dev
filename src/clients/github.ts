@@ -310,7 +310,11 @@ export async function checkQuotaAndNotify(
 
   // Calculate current usage based on the number of PRs recorded for this period
   // Note: Adjust cost calculation if needed, here we just count PRs for simplicity matching the promo limit
-  const prCount = installation?.pullRequests?.length || 0;
+  const prCount =
+    installation?.pullRequests?.reduce(
+      (tot, pr) => tot + Math.ceil(pr.cost / 0.25),
+      0
+    ) || 0;
 
   console.log(
     `Usage check for ${ownerLogin} (Install ID: ${installationId}, Period Key: ${subscription.renewalDate}): ${prCount} PRs used / ${subscription.monthlyPrLimit} limit.`
