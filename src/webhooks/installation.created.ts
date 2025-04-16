@@ -1,13 +1,10 @@
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 import { Octokit } from "octokit";
 import { ensureLabelExists } from "../clients/github.js";
-import {
-  AI_JR_DEV_LABEL_NAME,
-  AI_JR_DEV_LABEL_COLOR
-} from "../constants.js"; // Import all needed constants
 
 // Define the specific payload type for installation.created event
-type InstallationCreatedPayload = WebhookEventDefinition<"installation-created">;
+type InstallationCreatedPayload =
+  WebhookEventDefinition<"installation-created">;
 
 /**
  * Handles the 'installation.created' event.
@@ -30,10 +27,11 @@ export async function handleInstallationCreated({
   // The 'installation.created' event can include multiple repositories
   // if the user installs the app on multiple repos at once, or potentially
   // a single 'repository' object if installed on just one (less common).
-  const repositories = payload.repositories; // Use payload.repositories preferentially
+  const repositories =
+    payload.repositories || (payload.repository && [payload.repository]); // Use payload.repositories preferentially
 
   if (!repositories || repositories.length === 0) {
-    console.log(
+    console.warn(
       "No specific repositories found in the installation payload. Label creation skipped."
     );
     // If needed, you could attempt to list all repos accessible by the installation,
@@ -49,7 +47,18 @@ export async function handleInstallationCreated({
 
   for (const repo of repositories) {
     // The owner login is available in the installation account details
-    const owner = payload.installation.account?.login;
+    let owner: string = "";
+    if (
+      payload.installation.account &&
+      "login" in payload.installation.account
+    ) {
+      owner = payload.installation.account.login;
+    } else if (payload.organization) {
+      owner = payload.organization.login;
+    } else if (payload.repository) {
+      owner = payload.repository.owner.login;
+    }
+
     const repoName = repo.name;
 
     if (!owner) {
@@ -62,11 +71,7 @@ export async function handleInstallationCreated({
     console.log(`Ensuring labels exist for repository: ${owner}/${repoName}`);
     try {
       // Ensure "ai-jr-dev" label exists
-      await ensureLabelExists(
-        octokit,
-        owner,
-        repoName
-      );
+      await ensureLabelExists(octokit, owner, repoName);
     } catch (error) {
       // Error is already logged within ensureLabelExists
       console.error(
