@@ -1,6 +1,12 @@
-import { WebhookEventDefinition, EmitterWebhookEventName } from "@octokit/webhooks";
+import { WebhookEventDefinition } from "@octokit/webhooks";
 import { Octokit } from "octokit";
-import { ensureAiderLabelExists } from "../clients/github.js";
+import { ensureLabelExists } from "../clients/github.js";
+import {
+  AIDER_LABEL_NAME,
+  AIDER_LABEL_COLOR,
+  AI_JR_DEV_LABEL_NAME,
+  AI_JR_DEV_LABEL_COLOR
+} from "../constants.js"; // Import all needed constants
 
 // Define the specific payload type for installation.created event
 type InstallationCreatedPayload = WebhookEventDefinition<"installation.created">;
@@ -24,9 +30,16 @@ export async function handleInstallationCreated({
   console.log("Handling installation.created event...");
 
   // The 'installation.created' event can include multiple repositories
-  // if the user installs the app on multiple repos at once.
-  if (!payload.repositories) {
-    console.log("No repositories found in the installation payload.");
+  // if the user installs the app on multiple repos at once, or potentially
+  // a single 'repository' object if installed on just one (less common).
+  const repositories = payload.repositories; // Use payload.repositories preferentially
+
+  if (!repositories || repositories.length === 0) {
+    console.log(
+      "No specific repositories found in the installation payload. Label creation skipped."
+    );
+    // If needed, you could attempt to list all repos accessible by the installation,
+    // but that might be resource-intensive and require different permissions.
     return;
   }
 
@@ -36,19 +49,36 @@ export async function handleInstallationCreated({
   // The octokit instance passed to the handler is already authenticated
   // for the specific installation that triggered the event.
 
-  for (const repo of payload.repositories) {
+  for (const repo of repositories) {
     // The owner login is available in the installation account details
     const owner = payload.installation.account.login;
     const repoName = repo.name;
 
-    console.log(`Ensuring label exists for repository: ${owner}/${repoName}`);
+    console.log(`Ensuring labels exist for repository: ${owner}/${repoName}`);
     try {
-      // Use the installation-authenticated octokit instance
-      await ensureAiderLabelExists(octokit, owner, repoName);
+      // Ensure "aider-request" label exists
+      await ensureLabelExists(
+        octokit,
+        owner,
+        repoName,
+        AIDER_LABEL_NAME,
+        AIDER_LABEL_COLOR,
+        "Issue requests for the Aider agent" // Description for aider-request
+      );
+
+      // Ensure "ai-jr-dev" label exists
+      await ensureLabelExists(
+        octokit,
+        owner,
+        repoName,
+        AI_JR_DEV_LABEL_NAME,
+        AI_JR_DEV_LABEL_COLOR,
+        "Assign this issue to AI Jr Dev" // Description for ai-jr-dev
+      );
     } catch (error) {
-      // Error is already logged within ensureAiderLabelExists
+      // Error is already logged within ensureLabelExists
       console.error(
-        `Error ensuring label exists for ${owner}/${repoName}. Continuing with next repository.`
+        `Error ensuring labels exist for ${owner}/${repoName}. Continuing with next repository.`
       );
     }
   }
