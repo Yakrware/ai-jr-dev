@@ -243,7 +243,11 @@ export async function checkQuotaAndNotify(
     ); // Enterprise clients bypass quota
   }
 
-  const subscription = await getSubscriptionDetails(octokit, ownerLogin);
+  let subscription = await getSubscriptionDetails(octokit, ownerLogin);
+
+  if (!subscription) {
+    // the first 100 users get 5 total PRs
+  }
 
   // Note: We might not need isActive check if getSubscriptionDetails handles it by returning 0 limit
   if (!subscription) {
