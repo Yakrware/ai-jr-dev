@@ -24,5 +24,8 @@ WEAK_MODEL="${WEAK_MODEL:-$MODEL}"
 # Run aider command with specified models
 eval "aider --architect --no-show-model-warnings --no-check-update --yes-always --model $MODEL ${FILES} --message \"${PROMPT}\""
 
+# Generate diff of staged changes
+git diff --staged > /tmp/diff.txt
+
 # Push changes
 git push origin $BRANCH_NAME
