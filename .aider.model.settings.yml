@@ -1,6 +1,5 @@
 - name: openrouter/google/gemini-2.5-pro-preview-03-25
   edit_format: diff-fenced
   weak_model_name: openrouter/google/gemini-2.5-flash-preview
-  editor_model_name: openrouter/google/gemini-2.5-flash-preview
-  editor_edit_format: whole
+  editor_model_name: openrouter/anthropic/claude-3.7-sonnet
   use_repo_map: true
