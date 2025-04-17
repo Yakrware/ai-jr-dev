@@ -64,6 +64,7 @@ describe("runCloudRunJob", () => {
     prompt: "Test prompt message",
     cloneUrlWithoutToken: "https://github.com/test-owner/test-repo.git",
     branchName: "test-branch",
+    defaultBranch: "main",
   };
 
   beforeEach(() => {
@@ -114,6 +115,7 @@ describe("runCloudRunJob", () => {
             { name: "REPO_NAME", value: expectedCloneUrlWithToken },
             { name: "BRANCH_NAME", value: mockParams.branchName },
             { name: "FILES", value: "" },
+            { name: "DEFAULT_BRANCH", value: mockParams.defaultBranch },
           ],
         },
       ],
@@ -144,6 +146,7 @@ describe("runCloudRunJob", () => {
             { name: "REPO_NAME", value: expectedCloneUrlWithToken },
             { name: "BRANCH_NAME", value: mockParams.branchName },
             { name: "FILES", value: "" },
+            { name: "DEFAULT_BRANCH", value: mockParams.defaultBranch },
           ],
         },
       ],
