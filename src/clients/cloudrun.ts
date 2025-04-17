@@ -14,6 +14,9 @@ export interface RunJobParams {
   cloneUrlWithoutToken: string;
   branchName: string;
   files?: string[]; // Optional list of files to include
+  model?: string; // Optional model override
+  editorModel?: string; // Optional editor model override
+  weakModel?: string; // Optional weak model override
 }
 
 /**
@@ -49,6 +52,11 @@ export async function runCloudRunJob(
       files && files.length > 0
         ? files.map((f) => `--file ${f}`).join(" ")
         : "";
+        
+    // Get model settings from params or use defaults from environment
+    const modelArg = params.model || process.env.DEFAULT_MODEL;
+    const editorModelArg = params.editorModel || process.env.DEFAULT_EDITOR_MODEL;
+    const weakModelArg = params.weakModel || process.env.DEFAULT_WEAK_MODEL;
 
     const overrides: protos.google.cloud.run.v2.IRunJobRequest["overrides"] = {
       containerOverrides: [
@@ -66,6 +74,18 @@ export async function runCloudRunJob(
             {
               name: "FILES",
               value: filesArg,
+            },
+            {
+              name: "MODEL",
+              value: modelArg,
+            },
+            {
+              name: "EDITOR_MODEL",
+              value: editorModelArg,
+            },
+            {
+              name: "WEAK_MODEL",
+              value: weakModelArg,
             },
           ],
         },
