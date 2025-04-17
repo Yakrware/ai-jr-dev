@@ -4,6 +4,8 @@ import { WebhookEventDefinition } from "@octokit/webhooks/types";
 
 // System prompt to guide the AI
 const SYSTEM_PROMPT = `Generate plan then implement the following feature:
+- Avoid writing \`console.log\` statements for debugging.
+- Avoid writing excessive comments, unless explaining complex logic.
 `;
 
 /**
