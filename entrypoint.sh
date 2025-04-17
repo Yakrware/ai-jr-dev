@@ -21,8 +21,11 @@ git config --global user.name "ai-jr-dev[bot]"
 EDITOR_MODEL="${EDITOR_MODEL:-$MODEL}"
 WEAK_MODEL="${WEAK_MODEL:-$MODEL}"
 
+# Generate diff of changes compared to the default branch
+git diff -C10 $DEFAULT_BRANCH..$BRANCH_NAME > pr-changes.diff
+
 # Run aider command with specified models
-eval "aider --architect --no-show-model-warnings --no-check-update --yes-always --model $MODEL ${FILES} --message \"${PROMPT}\""
+eval "aider --architect --no-show-model-warnings --no-check-update --yes-always --model $MODEL ${FILES} --read pr-changes.diff --message \"${PROMPT}\""
 
 # Push changes
 git push origin $BRANCH_NAME

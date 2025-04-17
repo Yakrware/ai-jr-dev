@@ -14,6 +14,7 @@ export interface RunJobParams {
   cloneUrlWithoutToken: string;
   branchName: string;
   files?: string[]; // Optional list of files to include
+  defaultBranch: string; // Add default branch
 }
 
 /**
@@ -30,6 +31,7 @@ export async function runCloudRunJob(
     cloneUrlWithoutToken,
     branchName,
     files, // Destructure the files parameter
+    defaultBranch, // Destructure default branch
   }: RunJobParams
 ): Promise<string> {
   const jobsClient = new JobsClient();
@@ -67,6 +69,7 @@ export async function runCloudRunJob(
               name: "FILES",
               value: filesArg,
             },
+            { name: "DEFAULT_BRANCH", value: defaultBranch },
           ],
         },
       ],
