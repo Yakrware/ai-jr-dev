@@ -1,7 +1,7 @@
 import { Octokit } from "octokit";
 import { WebhookEventDefinition } from "@octokit/webhooks/types";
 import { kebabCase } from "../utilities.js";
-import { generatePrDescription } from "./openai.js";
+import { generatePrDescription, generateAcknowledgementMessage } from "./openai.js";
 import {
   getEnterpriseClient,
   getInstallation,
@@ -36,11 +36,12 @@ export async function createWorkingComment(
   octokit: Octokit,
   payload: IssuesLabeledPayload
 ): Promise<void> {
+  const acknowledgementMessage = await generateAcknowledgementMessage();
   await octokit.rest.issues.createComment({
     owner: payload.repository.owner.login,
     repo: payload.repository.name,
     issue_number: payload.issue.number,
-    body: "I'm on it!",
+    body: acknowledgementMessage,
   });
 }
 

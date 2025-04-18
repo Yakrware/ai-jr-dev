@@ -156,3 +156,34 @@ export async function generatePrDescription(
     return defaultDescription; // Return default description on error
   }
 }
+
+/**
+ * Generates a friendly acknowledgement message for the initial comment on an issue.
+ * 
+ * @returns A promise resolving to a string containing the acknowledgement message.
+ */
+export async function generateAcknowledgementMessage(): Promise<string> {
+  const defaultMessage = "I'm on it!";
+  try {
+    const completion = await openAIClient.chat.completions.create({
+      model: MODEL_NAME,
+      messages: [
+        {
+          role: "system",
+          content: `You are an AI junior developer assistant. Generate a friendly, brief acknowledgement message that you'll be working on a GitHub issue. The message should be enthusiastic, professional, and indicate that you're starting to work on the task. Keep it under 3 sentences. Don't ask questions or request clarification - just acknowledge you're working on it. Vary your responses to sound natural.`,
+        },
+      ],
+      temperature: 0.7, // Higher temperature for more variety
+      max_tokens: 100, // Keep it brief
+    });
+
+    const content = completion.choices[0]?.message?.content?.trim();
+    return content || defaultMessage; // Return generated content or default if empty
+  } catch (error) {
+    console.error(
+      "Error calling OpenRouter API for generateAcknowledgementMessage:",
+      error
+    );
+    return defaultMessage; // Return default message on error
+  }
+}
