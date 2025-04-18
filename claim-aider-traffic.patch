@@ -1,0 +1,13 @@
+--- llm.py	2025-04-18 01:00:57
++++ llm.py	2025-04-18 01:00:52
+@@ -6,8 +6,8 @@
+ 
+ warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+ 
+-AIDER_SITE_URL = "https://aider.chat"
+-AIDER_APP_NAME = "Aider"
++AIDER_SITE_URL = "https://yakrware.com"
++AIDER_APP_NAME = "AI Jr Dev"
+ 
+ os.environ["OR_SITE_URL"] = AIDER_SITE_URL
+ os.environ["OR_APP_NAME"] = AIDER_APP_NAME
