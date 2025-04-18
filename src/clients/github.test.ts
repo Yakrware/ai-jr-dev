@@ -7,10 +7,12 @@ import { addPromotionUser, getPromotionCount } from "./mongodb.js";
 
 // Mock openai module
 const mockPrDescription = "Mocked AI-generated PR description.";
+const mockAcknowledgementMessage = "Mocked: I'm on it!";
 // @ts-ignore
 jest.unstable_mockModule("./dist/clients/openai.js", () => ({
   __esModule: true,
   generatePrDescription: jest.fn().mockResolvedValue(mockPrDescription),
+  generateAcknowledgementMessage: jest.fn().mockResolvedValue(mockAcknowledgementMessage),
   // Mock other exports from openai.js if they are used elsewhere in the test file
   // identifyMissingFiles: jest.fn().mockResolvedValue([]),
 }));
@@ -32,7 +34,7 @@ jest.unstable_mockModule("./dist/clients/mongodb.js", () => ({
 }));
 
 // Import AFTER mocks are set up
-const { generatePrDescription } = await import("./openai.js");
+const { generatePrDescription, generateAcknowledgementMessage } = await import("./openai.js");
 const {
   createWorkingComment,
   createBranch,
@@ -174,7 +176,7 @@ describe("GitHub Client Functions", () => {
         owner: "test-owner",
         repo: "test-repo",
         issue_number: 1,
-        body: "I'm on it!",
+        body: mockAcknowledgementMessage, // Use the mocked message
       });
     });
   });
