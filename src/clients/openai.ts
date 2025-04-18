@@ -6,6 +6,10 @@ dotenv.config();
 const openAIClient = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
   apiKey: process.env.OPENROUTER_API_KEY,
+  defaultHeaders: {
+    "HTTP-Referer": "https://yakrware.com",
+    "X-Title": "AI Jr Dev",
+  },
 });
 
 const MODEL_NAME = "google/gemini-2.5-flash-preview"; // Updated model name based on availability
