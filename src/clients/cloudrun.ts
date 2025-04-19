@@ -49,7 +49,10 @@ export async function runCloudRunJob(
 
     const filesArg =
       files && files.length > 0
-        ? files.map((f) => `--file ${f}`).join(" ")
+        ? files
+            .map((f) => `--file ${f}`)
+            .join(" ")
+            .replace(/["$<>()`]/g, "\\$&")
         : "";
 
     const overrides: protos.google.cloud.run.v2.IRunJobRequest["overrides"] = {
