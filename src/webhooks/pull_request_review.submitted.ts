@@ -5,6 +5,7 @@ import { generateReviewPrompt } from "../lib/prompt.js";
 import {
   resetReviewRequest,
   getInstallationFromOwner,
+  handleNoChangesGenerated,
 } from "../clients/github.js";
 import { addSessionToPullRequest } from "../clients/mongodb.js";
 import { identifyMissingFiles, extractSessionCost } from "../clients/openai.js";
@@ -89,7 +90,8 @@ export async function handlePullRequestReviewSubmitted({
         });
 
         if (startBranch.data.commit.sha === endBranch.data.commit.sha) {
-          // TODO: Add a comment to PR about it not finding a change.
+          // Call the function to comment about no changes
+          await handleNoChangesGenerated(octokit, payload);
         }
       }
 
