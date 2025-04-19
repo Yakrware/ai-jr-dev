@@ -163,7 +163,7 @@ export async function generatePrDescription(
 
 /**
  * Generates a friendly acknowledgement message for the initial comment on an issue.
- * 
+ *
  * @returns A promise resolving to a string containing the acknowledgement message.
  */
 export async function generateAcknowledgementMessage(): Promise<string> {
@@ -174,7 +174,7 @@ export async function generateAcknowledgementMessage(): Promise<string> {
       messages: [
         {
           role: "system",
-          content: `You are an AI junior developer assistant. Generate a friendly, brief acknowledgement message that you'll be working on a GitHub issue. The message should be enthusiastic, professional, and indicate that you're starting to work on the task. Keep it under 3 sentences. Don't ask questions or request clarification - just acknowledge you're working on it. Vary your responses to sound natural.`,
+          content: `You are an AI junior developer assistant. Generate a friendly, brief acknowledgement message that you'll be working on a GitHub issue. The message should be enthusiastic, professional, and indicate that you're starting to work on the task. Keep it under 3 sentences. Don't ask questions or request clarification - just acknowledge you're working on it. Vary your responses to sound natural. Just respond with a single acknolegement statement as if you are talking directly to the user.`,
         },
       ],
       temperature: 0.7, // Higher temperature for more variety
