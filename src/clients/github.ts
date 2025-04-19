@@ -389,6 +389,28 @@ export async function createQuotaExceededComment(
 }
 
 /**
+ * Comments on the PR indicating that no changes were generated based on the review feedback.
+ */
+export async function handleNoChangesGenerated(
+  octokit: Octokit,
+  payload: PullRequestReviewSubmittedPayload
+): Promise<void> {
+  const prNumber = payload.pull_request.number;
+  const owner = payload.repository.owner.login;
+  const repo = payload.repository.name;
+
+  // TODO: Use an LLM to analyze the job output and provide a more specific reason for failure.
+  console.error(`No changes generated for PR #${prNumber} after review.`);
+
+  await octokit.rest.issues.createComment({
+    owner,
+    repo,
+    issue_number: prNumber,
+    body: "I reviewed the feedback, but I couldn't determine any specific code changes to make based on it. Could you please provide more detailed instructions?",
+  });
+}
+
+/**
  * Creates a comment linking to the newly created Pull Request.
  */
 export async function createPrLinkedComment(
