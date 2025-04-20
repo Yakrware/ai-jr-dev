@@ -45,15 +45,6 @@ export async function handlePullRequestReviewSubmitted({
         return;
       }
 
-      // Fetch files changed in the pull request
-      const { data: prFiles } = await octokit.rest.pulls.listFiles({
-        owner: payload.repository.owner.login,
-        repo: payload.repository.name,
-        pull_number: payload.pull_request.number,
-      });
-
-      // Extract filenames
-      let files = prFiles.map((file) => file.filename);
       const startBranch = await octokit.rest.repos.getBranch({
         owner: payload.repository.owner.login,
         repo: payload.repository.name,
@@ -65,7 +56,6 @@ export async function handlePullRequestReviewSubmitted({
         prompt,
         cloneUrlWithoutToken: payload.repository.clone_url,
         branchName: payload.pull_request.head.ref,
-        files,
         defaultBranch: payload.repository.default_branch,
       };
       let result = await runCloudRunJob(octokit, jobParams);
@@ -79,7 +69,7 @@ export async function handlePullRequestReviewSubmitted({
 
       if (startBranch.data.commit.sha === midBranch.data.commit.sha) {
         // first run didn't find anything.
-        files = files.concat(await identifyMissingFiles(prompt, result));
+        const files = await identifyMissingFiles(prompt, result);
         result = await runCloudRunJob(octokit, { ...jobParams, files });
         sessionCost += await extractSessionCost(result);
 
