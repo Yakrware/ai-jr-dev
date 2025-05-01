@@ -99,9 +99,14 @@ export async function createBranch(
   octokit: Octokit,
   payload: IssuesLabeledPayload
 ): Promise<string> {
-  const branchName = `ai-jr-dev/${payload.issue.number}-${kebabCase(
-    payload.issue.title
-  )}`;
+  const prefix = `ai-jr-dev/${payload.issue.number}-`;
+  const titleSlug = kebabCase(payload.issue.title);
+  const maxTitleSlugLength = 240 - prefix.length; // Max length for the slug part
+
+  const truncatedTitleSlug = titleSlug.substring(0, maxTitleSlugLength);
+
+  // Ensure the final name doesn't end with a hyphen if truncated mid-word part
+  const branchName = `${prefix}${truncatedTitleSlug}`.replace(/-$/, "");
 
   const defaultBranch = await octokit.rest.repos.getBranch({
     repo: payload.repository.name,
