@@ -361,7 +361,9 @@ describe("GitHub Client Functions", () => {
         owner: "test-owner",
         repo: "test-repo",
         issue_number: 1,
-        body: expect.stringContaining("I'm sorry, I've actually had an error"),
+        body: expect.stringContaining(
+          "I'm sorry, I encountered an error processing your request."
+        ),
       });
     });
 
