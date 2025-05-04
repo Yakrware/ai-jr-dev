@@ -3,6 +3,11 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// Check if OpenRouter API key is available
+if (!process.env.OPENROUTER_API_KEY) {
+  console.warn("Warning: OPENROUTER_API_KEY environment variable is not set");
+}
+
 const openAIClient = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
   apiKey: process.env.OPENROUTER_API_KEY,

@@ -8,6 +8,11 @@ const FULL_JOB_NAME = `projects/${
   process.env.JOB_NAME || "aider-runner"
 }`;
 
+// Check if OpenRouter API key is available
+if (!process.env.OPENROUTER_API_KEY) {
+  console.warn("Warning: OPENROUTER_API_KEY environment variable is not set");
+}
+
 export interface RunJobParams {
   installationId: number;
   prompt: string;
@@ -73,6 +78,11 @@ export async function runCloudRunJob(
               value: filesArg,
             },
             { name: "DEFAULT_BRANCH", value: defaultBranch },
+            // Pass OpenRouter API key to the Cloud Run job
+            {
+              name: "OPEN_ROUTER_API_KEY",
+              value: process.env.OPENROUTER_API_KEY || "",
+            },
           ],
         },
       ],
