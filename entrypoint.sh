@@ -3,10 +3,14 @@
 # Set constants
 WORKDIR="/tmp/repo"
 
-export OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY}
+# Ensure OPEN_ROUTER_API_KEY is available to aider
+if [ -n "${OPEN_ROUTER_API_KEY}" ]; then
+  export OPEN_ROUTER_API_KEY="${OPEN_ROUTER_API_KEY}"
+else
+  echo "Warning: OPEN_ROUTER_API_KEY is not set"
+fi
 
 # Switch to the repo directory
-
 git clone ${REPO_NAME} -b ${BRANCH_NAME} --single-branch ${WORKDIR}
 
 cp .aider.model.settings.yml ${WORKDIR}/.aider.model.settings.yml
