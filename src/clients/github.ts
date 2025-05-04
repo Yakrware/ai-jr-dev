@@ -445,7 +445,7 @@ export async function handleIssueError(
       owner: payload.repository.owner.login,
       repo: payload.repository.name,
       issue_number: payload.issue.number,
-      body: "I'm sorry, I've actually had an error that I don't know how to handle. You can try again, but if it keeps failing, I'll have my own Sr dev's review the error.",
+      body: "I'm sorry, I encountered an error I couldn't handle. To try again, please add more details about the desired changes to the issue description and then add the `ai-jr-dev` label back to this issue. If it continues to fail, my developers will review the error logs.",
     });
     if (payload.label?.name) {
       await octokit.rest.issues.removeLabel({
