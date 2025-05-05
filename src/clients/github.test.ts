@@ -361,7 +361,9 @@ describe("GitHub Client Functions", () => {
         owner: "test-owner",
         repo: "test-repo",
         issue_number: 1,
-        body: expect.stringContaining("I'm sorry, I've actually had an error"),
+        body: expect.stringContaining(
+          "I'm sorry, I encountered an error I couldn't handle. To try again, please add more details about the desired changes to the issue description and then add the `ai-jr-dev` label back to this issue. If it continues to fail, my developers will review the error logs."
+        ),
       });
     });
 
